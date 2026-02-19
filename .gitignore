@@ -1,0 +1,40 @@
+# Node.js
+node_modules/
+server/dist/
+server/data/
+server/bin/
+
+# Go
+client/firefrp
+client/firefrp-*
+client/dist/
+
+# frps runtime
+*.toml.bak
+frps.toml
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs
+*.log
+logs/
