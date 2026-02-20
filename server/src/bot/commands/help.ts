@@ -9,7 +9,7 @@ import { config } from '../../config';
 export function handleHelp(): string {
   const maxTtl = config.keyTtlMinutes;
   return [
-    `--- ${getMessageHeader()} | 帮助 ---`,
+    `--- 帮助 ---`,
     '',
     '命令列表:',
     '  开服 [游戏类型] [时长(分钟)]',
@@ -44,5 +44,7 @@ export function handleHelp(): string {
     '  群列表  查看群白名单',
     '  加群 <群号>  添加群白名单',
     '  移群 <群号>  移除群白名单',
+    '',
+    getMessageHeader(),
   ].join('\n');
 }

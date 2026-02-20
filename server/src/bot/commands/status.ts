@@ -19,7 +19,7 @@ export function handleStatus(userId: string): string {
 
   const lines: string[] = [];
 
-  lines.push(`--- ${getMessageHeader()} | 状态 ---`);
+  lines.push('--- 状态 ---');
   lines.push('');
 
   // Server status
@@ -53,6 +53,8 @@ export function handleStatus(userId: string): string {
   }
 
   log.debug({ userId, activeKeyCount: activeKeys.length }, 'Status command executed');
+
+  lines.push(getMessageHeader());
 
   return lines.join('\n');
 }

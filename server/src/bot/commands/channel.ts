@@ -14,10 +14,10 @@ export function handleChannel(args: string[]): string {
     const ch = config.updates.channel;
     const ver = getVersion();
     return (
-      `${getMessageHeader()}\n` +
       `当前更新通道: ${ch}\n` +
       `当前版本: ${ver}\n` +
-      `可选: auto | dev | stable`
+      `可选: auto | dev | stable\n` +
+      getMessageHeader()
     );
   }
 
@@ -29,5 +29,5 @@ export function handleChannel(args: string[]): string {
   (config.updates as { channel: string }).channel = target;
   saveConfig();
 
-  return `${getMessageHeader()}\n更新通道已切换为: ${target}`;
+  return `更新通道已切换为: ${target}\n${getMessageHeader()}`;
 }

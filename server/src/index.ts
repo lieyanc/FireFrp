@@ -181,8 +181,8 @@ async function main(): Promise<void> {
     try {
       if (qqBot.isConnected()) {
         const msg =
-          `${getMessageHeader()}\n` +
-          `🔴 节点下线`;
+          `🔴 节点下线\n` +
+          getMessageHeader();
         await qqBot.broadcastGroupMessage(msg);
         log.info('Offline broadcast sent');
       }
@@ -255,10 +255,10 @@ async function main(): Promise<void> {
     await new Promise((r) => setTimeout(r, 2000));
     if (qqBot.isConnected()) {
       const msg =
-        `${getMessageHeader()}\n` +
         `🟢 节点上线\n` +
         `地址: ${config.server.publicAddr}\n` +
-        `配置: ${config.server.description}`;
+        `配置: ${config.server.description}\n` +
+        getMessageHeader();
       await qqBot.broadcastGroupMessage(msg);
       log.info('Online broadcast sent');
     }
@@ -280,9 +280,9 @@ async function main(): Promise<void> {
         const ver = getDisplayVersion();
         const downloadUrl = `https://dl.repo.chycloud.top/lieyanc/FireFrp/${ver}`;
         const updateMsg =
-          `${getMessageHeader()}\n` +
           `🔄 已更新至 ${ver}\n` +
-          `客户端下载: ${downloadUrl}`;
+          `客户端下载: ${downloadUrl}\n` +
+          getMessageHeader();
         await qqBot.broadcastGroupMessage(updateMsg, config.bot.allowedGroups);
         log.info({ version: ver, downloadUrl }, 'Update download broadcast sent');
         // Only delete marker after successful broadcast

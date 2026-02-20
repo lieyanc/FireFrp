@@ -21,7 +21,7 @@ export function handleTunnels(): string {
   }
 
   const lines: string[] = [];
-  lines.push(`--- ${getMessageHeader()} | 活跃隧道 (${keys.length} 个) ---`);
+  lines.push(`--- 活跃隧道 (${keys.length} 个) ---`);
   lines.push('');
 
   for (const key of keys) {
@@ -32,6 +32,9 @@ export function handleTunnels(): string {
     lines.push(`[${key.tunnelId}] ${status} | ${getGameDisplayName(key.gameType)} | ${key.userName}`);
     lines.push(`  端口: ${key.remotePort} | 剩余: ${remaining}分钟`);
   }
+
+  lines.push('');
+  lines.push(getMessageHeader());
 
   return lines.join('\n');
 }
@@ -62,12 +65,13 @@ export function handleKick(args: string[]): string {
   log.info({ tunnelId, userId: revoked.userId, proxyName: revoked.proxyName }, 'Admin kicked tunnel');
 
   return [
-    `${getMessageHeader()}`,
     `已撤销隧道 [${tunnelId}]`,
     `  用户: ${revoked.userName}`,
     `  游戏: ${getGameDisplayName(revoked.gameType)}`,
     `  端口: ${revoked.remotePort}`,
     '客户端将在下次心跳时被断开。',
+    '',
+    getMessageHeader(),
   ].join('\n');
 }
 
@@ -152,12 +156,14 @@ export function handleGroups(): string {
   }
 
   const lines: string[] = [];
-  lines.push(`--- ${getMessageHeader()} | 群白名单 (${allowed.length} 个) ---`);
+  lines.push(`--- 群白名单 (${allowed.length} 个) ---`);
   for (const g of allowed) {
     lines.push(`  ${g}`);
   }
   lines.push('');
   lines.push('使用"加群/移群 <群号>"管理白名单。');
+  lines.push('');
+  lines.push(getMessageHeader());
 
   return lines.join('\n');
 }
@@ -170,7 +176,7 @@ export async function handleServerStatus(): Promise<string> {
   const managerStatus = frpManager.getStatus();
   const lines: string[] = [];
 
-  lines.push(`--- ${getMessageHeader()} | 服务器状态 ---`);
+  lines.push(`--- 服务器状态 ---`);
   lines.push('');
   lines.push(`frps 状态: ${managerStatus.state}`);
 
@@ -209,6 +215,8 @@ export async function handleServerStatus(): Promise<string> {
   lines.push('');
   lines.push(`活跃隧道: ${activeKeys.filter(k => k.status === 'active').length} 个`);
   lines.push(`待连接: ${activeKeys.filter(k => k.status === 'pending').length} 个`);
+  lines.push('');
+  lines.push(getMessageHeader());
 
   return lines.join('\n');
 }

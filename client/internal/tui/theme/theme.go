@@ -1,8 +1,6 @@
 package theme
 
 import (
-	"strings"
-
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -167,13 +165,17 @@ func formatVersion(v string) string {
 	return v
 }
 
+// VersionStyle renders the version line below the title.
+var VersionStyle = lipgloss.NewStyle().
+	Foreground(ColorTextDim)
+
 // BrandText returns the styled FireFrp header block (title + version + subtitle).
 func BrandText() string {
-	parts := []string{"FireFrp Client"}
+	title := TitleStyle.Render("FireFrp Client")
+	lines := []string{title}
 	if clientVersion != "" {
-		parts = append(parts, formatVersion(clientVersion))
+		lines = append(lines, VersionStyle.Render(formatVersion(clientVersion)))
 	}
-	title := TitleStyle.Render(strings.Join(parts, " "))
-	subtitle := SubtitleStyle.Render("临时隧道，一键开服")
-	return lipgloss.JoinVertical(lipgloss.Center, title, subtitle)
+	lines = append(lines, SubtitleStyle.Render("临时隧道，一键开服"))
+	return lipgloss.JoinVertical(lipgloss.Center, lines...)
 }

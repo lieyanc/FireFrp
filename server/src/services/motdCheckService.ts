@@ -7,6 +7,7 @@ const log = logger.child({ module: 'motdCheck' });
 
 // Check intervals after tunnel activation
 const CHECK_DELAYS_MS = [
+  15 * 1000,       // 15 seconds
   1 * 60 * 1000,   // 1 minute
   3 * 60 * 1000,   // 3 minutes
   5 * 60 * 1000,   // 5 minutes
@@ -133,12 +134,13 @@ async function performCheck(tunnelId: string, isLast: boolean): Promise<void> {
     log.info({ tunnelId, motd: result.motd, players: result.onlinePlayers }, 'MOTD check succeeded');
 
     const message = [
-      `${getMessageHeader()}`,
       `Minecraft 服务器已就绪 (${tunnelId})`,
       `MOTD: ${result.motd}`,
       `在线人数: ${result.onlinePlayers}/${result.maxPlayers}`,
       `版本: ${result.version}`,
       `连接地址: ${entry.host}:${entry.port}`,
+      '',
+      getMessageHeader(),
     ].join('\n');
 
     const bot = await getBot();
@@ -154,11 +156,12 @@ async function performCheck(tunnelId: string, isLast: boolean): Promise<void> {
       log.warn({ tunnelId }, 'All MOTD checks failed');
 
       const message = [
-        `${getMessageHeader()}`,
         `Minecraft 服务器状态检测失败 (${tunnelId})`,
         `在 10 分钟内未检测到服务器 MOTD 响应。`,
         `请确认 MC 服务端已启动并绑定到正确端口。`,
         `连接地址: ${entry.host}:${entry.port}`,
+        '',
+        getMessageHeader(),
       ].join('\n');
 
       try {

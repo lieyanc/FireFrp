@@ -85,24 +85,29 @@ func (w *logWriter) Write(p []byte) (n int, err error) {
 		}
 		line = strings.TrimRight(line, "\r\n")
 		if entry, ok := parseLogLine(line); ok {
-			select {
-			case w.ch <- entry:
-			default:
+			suppressed := w.detectStatus(entry.Message)
+			if !suppressed {
+				select {
+				case w.ch <- entry:
+				default:
+				}
 			}
-			w.detectStatus(entry.Message)
 		}
 	}
 	return n, nil
 }
 
 // detectStatus inspects a parsed log message for frpc connection events
-// and sends the corresponding StatusUpdate. The frpc library logs:
+// and sends the corresponding StatusUpdate. Returns true if the message
+// is a status-related message that should be suppressed from the log
+// display (to avoid redundant lines already represented by the status
+// indicator). The frpc library logs:
 //
 //   - "start proxy success"         → proxy is active (fully connected)
 //   - "login to server success"     → login ok (connection established)
 //   - "try to connect to server..." → reconnection attempt
 //   - "connect to server error: ..."→ connection failed
-func (w *logWriter) detectStatus(msg string) {
+func (w *logWriter) detectStatus(msg string) bool {
 	switch {
 	case strings.Contains(msg, "start proxy success"):
 		w.connected = true
@@ -110,6 +115,7 @@ func (w *logWriter) detectStatus(msg string) {
 			Status:  StatusConnected,
 			Message: "隧道已建立",
 		})
+		return true
 	case strings.Contains(msg, "login to server success"):
 		// Login succeeded but proxy may not be ready yet; mark connected
 		// in case "start proxy success" is not logged (edge case).
@@ -120,6 +126,7 @@ func (w *logWriter) detectStatus(msg string) {
 				Message: "已登录服务器",
 			})
 		}
+		return true
 	case strings.Contains(msg, "try to connect to server"):
 		if w.connected {
 			sendStatus(w.statusCh, StatusUpdate{
@@ -127,6 +134,7 @@ func (w *logWriter) detectStatus(msg string) {
 				Message: "正在重连服务器...",
 			})
 		}
+		return false
 	case strings.Contains(msg, "connect to server error"):
 		if w.connected {
 			sendStatus(w.statusCh, StatusUpdate{
@@ -134,17 +142,21 @@ func (w *logWriter) detectStatus(msg string) {
 				Message: "连接服务器失败，正在重试...",
 			})
 		}
+		return false
 	case strings.Contains(msg, "login to the server failed"):
 		sendStatus(w.statusCh, StatusUpdate{
 			Status:  StatusRejected,
 			Message: "服务器拒绝连接，Access Key 可能已过期或被撤销",
 		})
+		return true
 	case strings.Contains(msg, "authorization failed"):
 		sendStatus(w.statusCh, StatusUpdate{
 			Status:  StatusRejected,
 			Message: "认证失败，Access Key 无效",
 		})
+		return true
 	}
+	return false
 }
 
 // parseLogLine parses a frpc log line of the form:

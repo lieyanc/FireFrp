@@ -120,7 +120,6 @@ export function handleOpenServer(
     );
 
     return [
-      `${getMessageHeader()}`,
       `隧道创建成功! 游戏: ${getGameDisplayName(gameType)}`,
       ``,
       `隧道编号: ${accessKey.tunnelId}`,
@@ -130,6 +129,8 @@ export function handleOpenServer(
       `过期时间: ${accessKey.expiresAt}`,
       ``,
       `请在 FireFrp 客户端中输入此 Key 来建立隧道。`,
+      ``,
+      getMessageHeader(),
     ].join('\n');
   } catch (err) {
     log.error({ err, userId, gameType }, 'Failed to create access key');

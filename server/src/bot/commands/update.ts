@@ -42,15 +42,15 @@ export function handleUpdate(sendProgress: (text: string) => Promise<void>): str
       );
 
       if (!info.available) {
-        await sendProgress(`${getMessageHeader()}\n已是最新版本 (${info.currentVersion})`);
+        await sendProgress(`已是最新版本 (${info.currentVersion})\n${getMessageHeader()}`);
         return;
       }
 
       await sendProgress(
-        `${getMessageHeader()}\n` +
         `发现新版本: ${info.latestVersion}\n` +
         `当前版本: ${info.currentVersion}\n` +
-        `正在下载更新包...`,
+        `正在下载更新包...\n` +
+        getMessageHeader(),
       );
 
       // performUpdate downloads, replaces files, then calls process.exit(0).
@@ -58,9 +58,9 @@ export function handleUpdate(sendProgress: (text: string) => Promise<void>): str
     } catch (err) {
       log.error({ err }, 'Update failed');
       const errMsg = err instanceof Error ? err.message : String(err);
-      await sendProgress(`${getMessageHeader()}\n更新失败: ${errMsg}`).catch(() => {});
+      await sendProgress(`更新失败: ${errMsg}\n${getMessageHeader()}`).catch(() => {});
     }
   })();
 
-  return `${getMessageHeader()}\n正在检查更新...`;
+  return `正在检查更新...\n${getMessageHeader()}`;
 }

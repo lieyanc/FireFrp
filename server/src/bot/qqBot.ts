@@ -40,7 +40,6 @@ const ADMIN_COMMANDS = new Set(['tunnels', 'kick', 'addgroup', 'rmgroup', 'group
  */
 function getAvailableCommands(isAdmin: boolean): string {
   const lines: string[] = [];
-  lines.push(getMessageHeader());
   lines.push('可用命令:');
   lines.push('  开服 [游戏] [时长]  创建隧道');
   lines.push('  状态  查看我的隧道');
@@ -58,6 +57,9 @@ function getAvailableCommands(isAdmin: boolean): string {
     lines.push('  更新  检查并更新服务端');
     lines.push('  通道 [auto|dev|stable]  更新通道');
   }
+
+  lines.push('');
+  lines.push(getMessageHeader());
 
   return lines.join('\n');
 }
@@ -398,9 +400,9 @@ class QQBot {
     }
 
     const message: MessageSegment[] = [
-      { type: 'text', data: { text: `${getMessageHeader()}\n来自` } },
+      { type: 'text', data: { text: `来自` } },
       { type: 'at', data: { qq: String(userId) } },
-      { type: 'text', data: { text: `的${gameType}隧道成功建立 (${tunnelId})\n公网连接地址: ${addr}` } },
+      { type: 'text', data: { text: `的${gameType}隧道成功建立 (${tunnelId})\n公网连接地址: ${addr}\n${getMessageHeader()}` } },
     ];
 
     await this.callApi('send_group_msg', {
@@ -427,9 +429,9 @@ class QQBot {
     }
 
     const message: MessageSegment[] = [
-      { type: 'text', data: { text: `${getMessageHeader()}\n来自` } },
+      { type: 'text', data: { text: `来自` } },
       { type: 'at', data: { qq: String(userId) } },
-      { type: 'text', data: { text: `的${gameType}隧道已断开 (${tunnelId})` } },
+      { type: 'text', data: { text: `的${gameType}隧道已断开 (${tunnelId})\n${getMessageHeader()}` } },
     ];
 
     await this.callApi('send_group_msg', {

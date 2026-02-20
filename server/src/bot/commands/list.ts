@@ -23,7 +23,7 @@ export async function handleList(groupId: string): Promise<string> {
   }
 
   const lines: string[] = [];
-  lines.push(`--- ${getMessageHeader()} | 本群隧道列表 (${tunnels.length} 个) ---`);
+  lines.push(`--- 本群隧道列表 (${tunnels.length} 个) ---`);
   lines.push('');
 
   for (const tunnel of tunnels) {
@@ -51,6 +51,8 @@ export async function handleList(groupId: string): Promise<string> {
   }
 
   log.debug({ groupId, tunnelCount: tunnels.length }, 'List command executed');
+
+  lines.push(getMessageHeader());
 
   return lines.join('\n');
 }
