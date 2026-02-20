@@ -64,10 +64,13 @@ type LogEntry struct {
 
 // logWriter implements io.Writer to capture frpc log output.
 // It buffers incoming bytes, splits on newlines, parses each line,
-// and sends LogEntry values to a channel.
+// sends LogEntry values to logCh, and detects connection status
+// changes from log content (since frpc has no event callback API).
 type logWriter struct {
-	ch  chan<- LogEntry
-	buf bytes.Buffer
+	ch        chan<- LogEntry
+	statusCh  chan<- StatusUpdate
+	buf       bytes.Buffer
+	connected bool // whether we've ever successfully connected
 }
 
 func (w *logWriter) Write(p []byte) (n int, err error) {
@@ -86,9 +89,52 @@ func (w *logWriter) Write(p []byte) (n int, err error) {
 			case w.ch <- entry:
 			default:
 			}
+			w.detectStatus(entry.Message)
 		}
 	}
 	return n, nil
+}
+
+// detectStatus inspects a parsed log message for frpc connection events
+// and sends the corresponding StatusUpdate. The frpc library logs:
+//
+//   - "start proxy success"         → proxy is active (fully connected)
+//   - "login to server success"     → login ok (connection established)
+//   - "try to connect to server..." → reconnection attempt
+//   - "connect to server error: ..."→ connection failed
+func (w *logWriter) detectStatus(msg string) {
+	switch {
+	case strings.Contains(msg, "start proxy success"):
+		w.connected = true
+		sendStatus(w.statusCh, StatusUpdate{
+			Status:  StatusConnected,
+			Message: "隧道已建立",
+		})
+	case strings.Contains(msg, "login to server success"):
+		// Login succeeded but proxy may not be ready yet; mark connected
+		// in case "start proxy success" is not logged (edge case).
+		if !w.connected {
+			w.connected = true
+			sendStatus(w.statusCh, StatusUpdate{
+				Status:  StatusConnected,
+				Message: "已登录服务器",
+			})
+		}
+	case strings.Contains(msg, "try to connect to server"):
+		if w.connected {
+			sendStatus(w.statusCh, StatusUpdate{
+				Status:  StatusReconnecting,
+				Message: "正在重连服务器...",
+			})
+		}
+	case strings.Contains(msg, "connect to server error"):
+		if w.connected {
+			sendStatus(w.statusCh, StatusUpdate{
+				Status:  StatusReconnecting,
+				Message: "连接服务器失败，正在重试...",
+			})
+		}
+	}
 }
 
 // parseLogLine parses a frpc log line of the form:
@@ -177,8 +223,13 @@ func StartTunnel(ctx context.Context, cfg TunnelConfig, statusCh chan<- StatusUp
 
 	// Redirect the frpc global logger to our logWriter so that log output
 	// is captured as structured entries instead of going to os.Stdout,
-	// which would corrupt the Bubble Tea alt screen.
-	frplog.Logger = frplog.Logger.WithOptions(goliblog.WithOutput(&logWriter{ch: logCh}))
+	// which would corrupt the Bubble Tea alt screen. The logWriter also
+	// detects connection status changes from log content and sends
+	// StatusUpdate messages, since frpc has no event callback API.
+	frplog.Logger = frplog.Logger.WithOptions(goliblog.WithOutput(&logWriter{
+		ch:       logCh,
+		statusCh: statusCh,
+	}))
 
 	// Create the frp client service.
 	svc, err := client.NewService(client.ServiceOptions{

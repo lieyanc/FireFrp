@@ -3,6 +3,8 @@ import * as keyService from '../services/keyService';
 import { logAuditEvent } from '../db/models/auditLog';
 import { isRejected, addToRejectSet } from '../services/expiryService';
 import { logger } from '../utils/logger';
+import { qqBot } from '../bot/qqBot';
+import { config } from '../config';
 
 const log = logger.child({ module: 'frpsPlugin' });
 const router = Router();
@@ -116,6 +118,21 @@ function handleLogin(content: Record<string, unknown>): object {
         return reject('Failed to activate access key');
       }
       log.info({ keyId: activated.id, clientId: runId }, 'Login: key activated');
+
+      // Notify the originating group that the tunnel is established
+      if (activated.groupId) {
+        const addr = `${config.server.publicAddr}:${activated.remotePort}`;
+        qqBot.notifyTunnelConnected(
+          Number(activated.groupId),
+          Number(activated.userId),
+          activated.userName,
+          activated.gameType,
+          addr,
+        ).catch((err) => {
+          log.error({ err, groupId: activated.groupId }, 'Failed to send tunnel notification');
+        });
+      }
+
       return allow();
     }
     default:

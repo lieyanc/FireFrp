@@ -15,6 +15,7 @@ export function create(
   userName: string,
   gameType: string,
   ttlMinutes?: number,
+  groupId?: string,
 ): AccessKey {
   const ttl = ttlMinutes ?? config.keyTtlMinutes;
   const key = generateAccessKey();
@@ -31,6 +32,7 @@ export function create(
     key,
     userId,
     userName,
+    groupId,
     gameType,
     status: 'pending',
     remotePort,

@@ -91,7 +91,7 @@ export function handleOpenServer(
 
   // Create the key
   try {
-    const accessKey = keyService.create(userId, userName, gameType, ttlMinutes);
+    const accessKey = keyService.create(userId, userName, gameType, ttlMinutes, groupId);
 
     log.info(
       { keyId: accessKey.id, userId, gameType, ttlMinutes, groupId },

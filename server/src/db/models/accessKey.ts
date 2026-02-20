@@ -7,6 +7,7 @@ export interface AccessKey {
   key: string;
   userId: string;
   userName: string;
+  groupId?: string;
   gameType: string;
   status: 'pending' | 'active' | 'expired' | 'revoked';
   remotePort: number;

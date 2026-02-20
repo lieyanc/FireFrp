@@ -195,10 +195,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case stateRunning:
 			m.runningView.AddLog(msg.entry.Time, msg.entry.Level, msg.entry.Message)
 		}
-		if m.state == stateConnecting || m.state == stateRunning {
-			return m, m.waitForLog()
-		}
-		return m, nil
+		// Always keep consuming logs as long as the channel is open.
+		return m, m.waitForLog()
 
 	// -- Cancel during connection ------------------------------------------
 	case views.CancelConnectMsg:

@@ -276,6 +276,35 @@ class QQBot {
   }
 
   /**
+   * Notify a group that a tunnel has been successfully established.
+   */
+  async notifyTunnelConnected(
+    groupId: number,
+    userId: number,
+    userName: string,
+    gameType: string,
+    addr: string,
+  ): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      log.warn('Cannot send tunnel notification: WebSocket not connected');
+      return;
+    }
+
+    const message: MessageSegment[] = [
+      { type: 'text', data: { text: `来自` } },
+      { type: 'at', data: { qq: String(userId) } },
+      { type: 'text', data: { text: `的${gameType}隧道成功建立\n公网连接地址: ${addr}` } },
+    ];
+
+    await this.callApi('send_group_msg', {
+      group_id: groupId,
+      message,
+    });
+
+    log.info({ groupId, userId, addr }, 'Tunnel connected notification sent');
+  }
+
+  /**
    * Broadcast a text message to all configured broadcast groups.
    * Unlike sendGroupMessage, this does not @mention anyone.
    */
