@@ -13,6 +13,7 @@ import { stopRateLimitCleanup } from './api/clientRoutes';
 import { qqBot } from './bot/qqBot';
 import { getDisplayVersion } from './version';
 import * as fs from 'fs';
+import * as path from 'path';
 
 const log = logger.child({ module: 'main' });
 
@@ -216,5 +217,24 @@ async function main(): Promise<void> {
     }
   } catch (err) {
     log.error({ err }, 'Failed to send online broadcast');
+  }
+
+  // ── Step 10: Post-update broadcast (download link) ──
+  const updateMarkerPath = path.join(config.paths.data, '.just_updated');
+  if (fs.existsSync(updateMarkerPath)) {
+    try {
+      fs.unlinkSync(updateMarkerPath);
+      if (qqBot.isConnected()) {
+        const ver = getDisplayVersion();
+        const downloadUrl = `https://dl.repo.chycloud.top/lieyanc/FireFrp/${ver}`;
+        const updateMsg =
+          `🔄 FireFrp 已更新至 ${ver}\n` +
+          `客户端下载: ${downloadUrl}`;
+        await qqBot.broadcastGroupMessage(updateMsg);
+        log.info({ version: ver, downloadUrl }, 'Update download broadcast sent');
+      }
+    } catch (err) {
+      log.error({ err }, 'Failed to send update broadcast');
+    }
   }
 }

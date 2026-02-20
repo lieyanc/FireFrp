@@ -176,6 +176,17 @@ export async function performUpdate(info?: UpdateCheckResult): Promise<void> {
     // ignore cleanup errors
   }
 
+  // Write update marker so the next startup can broadcast the update notification
+  try {
+    const dataDir = config.paths.data;
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(path.join(dataDir, '.just_updated'), info.latestVersion);
+  } catch {
+    // non-critical, ignore
+  }
+
   log.info(
     { version: info.latestVersion },
     'Server update complete, exiting for restart',
