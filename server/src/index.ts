@@ -139,7 +139,7 @@ async function main(): Promise<void> {
         const msg =
           `🔴 FireFrp 节点下线 (${getDisplayVersion()})\n` +
           `节点: ${config.server.name} (${config.server.id})`;
-        await qqBot.broadcastGroupMessage(msg);
+        await qqBot.broadcastGroupMessage(msg, config.bot.allowedGroups);
         log.info('Offline broadcast sent');
       }
     } catch (err) {
@@ -230,7 +230,7 @@ async function main(): Promise<void> {
         const updateMsg =
           `🔄 FireFrp 已更新至 ${ver}\n` +
           `客户端下载: ${downloadUrl}`;
-        await qqBot.broadcastGroupMessage(updateMsg);
+        await qqBot.broadcastGroupMessage(updateMsg, config.bot.allowedGroups);
         log.info({ version: ver, downloadUrl }, 'Update download broadcast sent');
       }
     } catch (err) {

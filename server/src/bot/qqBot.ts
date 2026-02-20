@@ -429,18 +429,19 @@ class QQBot {
   }
 
   /**
-   * Broadcast a text message to all configured broadcast groups.
+   * Broadcast a text message to a list of groups.
+   * Defaults to broadcastGroups if no target list is provided.
    * Unlike sendGroupMessage, this does not @mention anyone.
    */
-  async broadcastGroupMessage(text: string): Promise<void> {
+  async broadcastGroupMessage(text: string, targetGroups?: number[]): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       log.warn('Cannot broadcast: WebSocket not connected');
       return;
     }
 
-    const groups = config.bot.broadcastGroups;
+    const groups = targetGroups ?? config.bot.broadcastGroups;
     if (groups.length === 0) {
-      log.debug('No broadcast groups configured, skipping broadcast');
+      log.debug('No target groups for broadcast, skipping');
       return;
     }
 
