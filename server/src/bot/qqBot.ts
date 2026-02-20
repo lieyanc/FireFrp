@@ -16,7 +16,7 @@ import {
 import { handleUpdate } from './commands/update';
 import { handleChannel } from './commands/channel';
 import { handleList } from './commands/list';
-import { getMessageHeader } from '../version';
+import { getMessageHeader, getDisplayVersion } from '../version';
 
 const log = logger.child({ module: 'qqBot' });
 
@@ -44,6 +44,7 @@ function getAvailableCommands(isAdmin: boolean): string {
   lines.push('  开服 [游戏] [时长]  创建隧道');
   lines.push('  状态  查看我的隧道');
   lines.push('  列表  本群隧道列表');
+  lines.push('  下载  客户端下载链接');
   lines.push('  帮助  详细帮助');
 
   if (isAdmin) {
@@ -60,6 +61,7 @@ function getAvailableCommands(isAdmin: boolean): string {
 
   lines.push('');
   lines.push(getMessageHeader());
+  lines.push('GitHub: https://github.com/lieyanc/FireFrp');
 
   return lines.join('\n');
 }
@@ -125,6 +127,11 @@ export function processMessage(
 
     case 'list':
       return handleList(msg.groupId);
+
+    case 'download': {
+      const ver = getDisplayVersion();
+      return `客户端下载: https://dl.repo.chycloud.top/lieyanc/FireFrp/${ver}\n${getMessageHeader()}`;
+    }
 
     default:
       return '未知命令，输入"帮助"查看可用命令。';

@@ -46,5 +46,6 @@ export function handleHelp(): string {
     '  移群 <群号>  移除群白名单',
     '',
     getMessageHeader(),
+    'GitHub: https://github.com/lieyanc/FireFrp',
   ].join('\n');
 }
