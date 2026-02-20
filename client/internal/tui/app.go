@@ -9,6 +9,7 @@ import (
 
 	"github.com/AerNos/firefrp-client/internal/api"
 	"github.com/AerNos/firefrp-client/internal/config"
+	"github.com/AerNos/firefrp-client/internal/tui/theme"
 	"github.com/AerNos/firefrp-client/internal/tui/views"
 	"github.com/AerNos/firefrp-client/internal/tunnel"
 	"github.com/AerNos/firefrp-client/internal/updater"
@@ -548,6 +549,7 @@ func mapErrorCode(code, message string) string {
 // Run starts the Bubble Tea TUI application. It blocks until the user exits.
 func Run(cfg *config.Config, version string) error {
 	clientVersion = version
+	theme.SetVersion(version)
 	model := newAppModel(cfg)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	_, err := p.Run()

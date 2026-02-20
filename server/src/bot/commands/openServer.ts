@@ -24,7 +24,7 @@ const GAME_ALIASES: Record<string, string> = {
  * Display names for game types (properly cased for user-facing output).
  */
 const GAME_DISPLAY_NAMES: Record<string, string> = {
-  minecraft: 'Minecraft',
+  minecraft: 'Minecraft Java(默认)',
   terraria: 'Terraria',
   dont_starve_together: "Don't Starve Together",
   starbound: 'Starbound',
@@ -121,6 +121,7 @@ export function handleOpenServer(
     return [
       `开服成功! 游戏: ${getGameDisplayName(gameType)}`,
       ``,
+      `隧道编号: ${accessKey.tunnelId}`,
       `Access Key: ${accessKey.key}`,
       `远程端口: ${accessKey.remotePort}`,
       `有效时间: ${ttlMinutes} 分钟`,

@@ -4,6 +4,7 @@ import { config } from '../../config';
 
 export interface AccessKey {
   id: number;
+  tunnelId: string;
   key: string;
   userId: string;
   userName: string;

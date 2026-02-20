@@ -128,6 +128,7 @@ function handleLogin(content: Record<string, unknown>): object {
           Number(activated.userId),
           activated.userName,
           getGameDisplayName(activated.gameType),
+          activated.tunnelId,
           addr,
         ).catch((err) => {
           log.error({ err, groupId: activated.groupId }, 'Failed to send tunnel notification');

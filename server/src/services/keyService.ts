@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { accessKeyStore, AccessKey } from '../db/models/accessKey';
 import { logAuditEvent } from '../db/models/auditLog';
-import { generateAccessKey } from '../utils/crypto';
+import { generateAccessKey, generateTunnelId } from '../utils/crypto';
 import { logger } from '../utils/logger';
 import * as portService from './portService';
 
@@ -19,16 +19,18 @@ export function create(
 ): AccessKey {
   const ttl = ttlMinutes ?? config.keyTtlMinutes;
   const key = generateAccessKey();
+  const tunnelId = generateTunnelId();
   const remotePort = portService.allocate();
 
   const now = new Date();
   const expiresAt = new Date(now.getTime() + ttl * 60 * 1000);
 
-  // Build a short proxy name: ff-{id}-{gameAbbrev}
-  // We'll use a temp id, then update after insert
+  // Build proxy name using tunnelId: ff-{tunnelId}-{gameAbbrev}
   const gameAbbrev = gameType.toLowerCase().slice(0, 4);
+  const proxyName = `ff-${tunnelId}-${gameAbbrev}`;
 
   const accessKey = accessKeyStore.insert({
+    tunnelId,
     key,
     userId,
     userName,
@@ -36,19 +38,14 @@ export function create(
     gameType,
     status: 'pending',
     remotePort,
-    proxyName: '', // will be set below
+    proxyName,
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
     updatedAt: now.toISOString(),
   });
 
-  // Set proxy name now that we have the id
-  const proxyName = `ff-${accessKey.id}-${gameAbbrev}`;
-  accessKeyStore.update(accessKey.id, { proxyName });
-  accessKey.proxyName = proxyName;
-
-  logAuditEvent('key_created', accessKey.id, `user=${userId}, game=${gameType}, port=${remotePort}, ttl=${ttl}m`);
-  log.info({ keyId: accessKey.id, userId, gameType, remotePort, proxyName }, 'Access key created');
+  logAuditEvent('key_created', accessKey.id, `tunnelId=${tunnelId}, user=${userId}, game=${gameType}, port=${remotePort}, ttl=${ttl}m`);
+  log.info({ keyId: accessKey.id, tunnelId, userId, gameType, remotePort, proxyName }, 'Access key created');
 
   return accessKey;
 }
@@ -221,4 +218,11 @@ export function getActiveByUser(userId: string): AccessKey[] {
  */
 export function getByKey(key: string): AccessKey | undefined {
   return accessKeyStore.findBy('key', key);
+}
+
+/**
+ * Find a key record by its tunnel tracking ID.
+ */
+export function getByTunnelId(tunnelId: string): AccessKey | undefined {
+  return accessKeyStore.findBy('tunnelId', tunnelId);
 }

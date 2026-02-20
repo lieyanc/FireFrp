@@ -373,6 +373,7 @@ class QQBot {
     userId: number,
     userName: string,
     gameType: string,
+    tunnelId: string,
     addr: string,
   ): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -383,7 +384,7 @@ class QQBot {
     const message: MessageSegment[] = [
       { type: 'text', data: { text: `来自` } },
       { type: 'at', data: { qq: String(userId) } },
-      { type: 'text', data: { text: `的${gameType}隧道成功建立\n公网连接地址: ${addr}` } },
+      { type: 'text', data: { text: `的${gameType}隧道成功建立 (${tunnelId})\n公网连接地址: ${addr}` } },
     ];
 
     await this.callApi('send_group_msg', {
@@ -391,7 +392,7 @@ class QQBot {
       message,
     });
 
-    log.info({ groupId, userId, addr }, 'Tunnel connected notification sent');
+    log.info({ groupId, userId, tunnelId, addr }, 'Tunnel connected notification sent');
   }
 
   /**
@@ -402,6 +403,7 @@ class QQBot {
     userId: number,
     userName: string,
     gameType: string,
+    tunnelId: string,
   ): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       log.warn('Cannot send tunnel disconnect notification: WebSocket not connected');
@@ -411,7 +413,7 @@ class QQBot {
     const message: MessageSegment[] = [
       { type: 'text', data: { text: `来自` } },
       { type: 'at', data: { qq: String(userId) } },
-      { type: 'text', data: { text: `的${gameType}隧道已断开` } },
+      { type: 'text', data: { text: `的${gameType}隧道已断开 (${tunnelId})` } },
     ];
 
     await this.callApi('send_group_msg', {

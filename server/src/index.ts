@@ -1,4 +1,5 @@
 import express from 'express';
+import * as http from 'http';
 import { config } from './config';
 import { logger } from './utils/logger';
 import { accessKeyStore } from './db/models/accessKey';
@@ -8,7 +9,9 @@ import { errorHandler } from './middleware/errorHandler';
 import { frpManager } from './services/frpManager';
 import { checkForUpdate, performUpdate } from './services/updateService';
 import * as expiryService from './services/expiryService';
+import { stopRateLimitCleanup } from './api/clientRoutes';
 import { qqBot } from './bot/qqBot';
+import { getVersion } from './version';
 import * as fs from 'fs';
 
 const log = logger.child({ module: 'main' });
@@ -82,10 +85,10 @@ async function main(): Promise<void> {
   // Global error handler (must be last middleware)
   app.use(errorHandler);
 
-  await new Promise<void>((resolve) => {
-    app.listen(config.serverPort, () => {
+  const httpServer = await new Promise<http.Server>((resolve) => {
+    const server = app.listen(config.serverPort, () => {
       log.info({ port: config.serverPort }, 'Express API server started');
-      resolve();
+      resolve(server);
     });
   });
 
@@ -122,11 +125,18 @@ async function main(): Promise<void> {
 
     log.info({ signal }, 'Graceful shutdown initiated');
 
+    // Set an overall shutdown timeout — force exit if cleanup hangs
+    const forceExitTimer = setTimeout(() => {
+      log.error('Graceful shutdown timed out, forcing exit');
+      process.exit(1);
+    }, 15000);
+    forceExitTimer.unref(); // Don't let this timer keep the event loop alive
+
     // Broadcast offline notification before stopping services
     try {
       if (qqBot.isConnected()) {
         const msg =
-          `🔴 FireFrp 节点下线\n` +
+          `🔴 FireFrp 节点下线 (v${getVersion()})\n` +
           `节点: ${config.server.name} (${config.server.id})`;
         await qqBot.broadcastGroupMessage(msg);
         log.info('Offline broadcast sent');
@@ -141,6 +151,25 @@ async function main(): Promise<void> {
     } catch (err) {
       log.error({ err }, 'Error stopping QQ Bot');
     }
+
+    // Stop accepting new HTTP connections and close idle ones
+    try {
+      await new Promise<void>((resolve) => {
+        httpServer.close((err) => {
+          if (err) {
+            log.error({ err }, 'Error closing HTTP server');
+          } else {
+            log.info('HTTP server closed');
+          }
+          resolve();
+        });
+      });
+    } catch (err) {
+      log.error({ err }, 'Error closing HTTP server');
+    }
+
+    // Stop rate limit cleanup timer
+    stopRateLimitCleanup();
 
     // Stop expiry service
     expiryService.stop();
@@ -158,6 +187,7 @@ async function main(): Promise<void> {
 
   process.on('SIGTERM', () => { gracefulShutdown('SIGTERM').catch(() => process.exit(1)); });
   process.on('SIGINT', () => { gracefulShutdown('SIGINT').catch(() => process.exit(1)); });
+  process.on('SIGHUP', () => { gracefulShutdown('SIGHUP').catch(() => process.exit(1)); });
 
   // Catch unhandled rejections
   process.on('unhandledRejection', (reason, promise) => {
@@ -177,7 +207,7 @@ async function main(): Promise<void> {
     await new Promise((r) => setTimeout(r, 2000));
     if (qqBot.isConnected()) {
       const msg =
-        `🟢 FireFrp 节点上线\n` +
+        `🟢 FireFrp 节点上线 (v${getVersion()})\n` +
         `节点: ${config.server.name} (${config.server.id})\n` +
         `地址: ${config.server.publicAddr}\n` +
         `配置: ${config.server.description}`;

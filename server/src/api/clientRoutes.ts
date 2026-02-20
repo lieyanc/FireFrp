@@ -65,7 +65,7 @@ function checkRateLimit(ip: string): string | null {
 }
 
 // Periodically clean up stale rate limit entries (every 5 minutes)
-setInterval(() => {
+let rateLimitCleanupTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
   const now = Date.now();
   for (const [ip, bucket] of rateLimitMinute) {
     if (now >= bucket.resetAt) rateLimitMinute.delete(ip);
@@ -74,6 +74,16 @@ setInterval(() => {
     if (now >= bucket.resetAt) rateLimitHour.delete(ip);
   }
 }, 300_000);
+
+/**
+ * Stop the rate limit cleanup timer. Called during graceful shutdown.
+ */
+export function stopRateLimitCleanup(): void {
+  if (rateLimitCleanupTimer) {
+    clearInterval(rateLimitCleanupTimer);
+    rateLimitCleanupTimer = null;
+  }
+}
 
 // ─── Input validation helpers ────────────────────────────────────────────
 

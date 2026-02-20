@@ -5,6 +5,7 @@ import { addToRejectSet } from '../../services/expiryService';
 import { config, saveConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import { getGameDisplayName } from './openServer';
+import { getVersion } from '../../version';
 
 const log = logger.child({ module: 'bot:admin' });
 
@@ -20,7 +21,7 @@ export function handleTunnels(): string {
   }
 
   const lines: string[] = [];
-  lines.push(`--- 活跃隧道 (${keys.length} 个) ---`);
+  lines.push(`--- 活跃隧道 (${keys.length} 个) | v${getVersion()} ---`);
   lines.push('');
 
   for (const key of keys) {
@@ -28,7 +29,7 @@ export function handleTunnels(): string {
     const remaining = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 60000));
     const status = key.status === 'active' ? '已连接' : '待连接';
 
-    lines.push(`[${key.id}] ${status} | ${getGameDisplayName(key.gameType)} | ${key.userName}`);
+    lines.push(`[${key.tunnelId}] ${status} | ${getGameDisplayName(key.gameType)} | ${key.userName}`);
     lines.push(`  端口: ${key.remotePort} | 剩余: ${remaining}分钟`);
   }
 
@@ -37,30 +38,31 @@ export function handleTunnels(): string {
 
 /**
  * Handle "踢掉" / "kick" command.
- * Revokes a key by ID, disconnecting the client.
+ * Revokes a key by tunnel ID, disconnecting the client.
  */
 export function handleKick(args: string[]): string {
   if (args.length === 0) {
-    return '用法: 踢掉 <ID>\n使用"隧道列表"查看可用 ID。';
+    return '用法: 踢掉 <隧道ID>\n使用"隧道列表"查看可用 ID。';
   }
 
-  const keyId = parseInt(args[0], 10);
-  if (Number.isNaN(keyId)) {
-    return `无效的 ID: "${args[0]}"`;
+  const tunnelId = args[0];
+  const record = keyService.getByTunnelId(tunnelId);
+  if (!record) {
+    return `未找到隧道 ${tunnelId}。`;
   }
 
-  const revoked = keyService.revoke(keyId);
+  const revoked = keyService.revoke(record.id);
   if (!revoked) {
-    return `未找到 ID 为 ${keyId} 的活跃隧道。`;
+    return `隧道 ${tunnelId} 不是活跃状态，无法撤销。`;
   }
 
   // Add to reject set so frps Ping will disconnect the client
   addToRejectSet(revoked.key);
 
-  log.info({ keyId, userId: revoked.userId, proxyName: revoked.proxyName }, 'Admin kicked tunnel');
+  log.info({ tunnelId, userId: revoked.userId, proxyName: revoked.proxyName }, 'Admin kicked tunnel');
 
   return [
-    `已撤销隧道 [${keyId}]`,
+    `已撤销隧道 [${tunnelId}]`,
     `  用户: ${revoked.userName}`,
     `  游戏: ${getGameDisplayName(revoked.gameType)}`,
     `  端口: ${revoked.remotePort}`,
@@ -169,6 +171,7 @@ export async function handleServerStatus(): Promise<string> {
 
   lines.push('--- 服务器状态 ---');
   lines.push('');
+  lines.push(`FireFrp 版本: v${getVersion()}`);
   lines.push(`frps 状态: ${managerStatus.state}`);
 
   if (managerStatus.uptime !== null) {

@@ -142,9 +142,21 @@ var LogLevelError = lipgloss.NewStyle().
 	Foreground(ColorError).
 	Bold(true)
 
-// BrandText returns the styled FireFrp header block (title + subtitle).
+// clientVersion holds the build version, set via SetVersion().
+var clientVersion string
+
+// SetVersion stores the client version for display in BrandText.
+func SetVersion(v string) {
+	clientVersion = v
+}
+
+// BrandText returns the styled FireFrp header block (title + version + subtitle).
 func BrandText() string {
-	title := TitleStyle.Render("FireFrp Client")
+	titleStr := "FireFrp Client"
+	if clientVersion != "" {
+		titleStr += " v" + clientVersion
+	}
+	title := TitleStyle.Render(titleStr)
 	subtitle := SubtitleStyle.Render("临时隧道，一键开服")
 	return lipgloss.JoinVertical(lipgloss.Center, title, subtitle)
 }

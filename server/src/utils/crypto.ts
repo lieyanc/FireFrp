@@ -19,6 +19,18 @@ export function generateAccessKey(): string {
 }
 
 /**
+ * Generate a unique tunnel tracking ID.
+ * Format: "T-" + 8 hex characters (32 bits of entropy).
+ * Example: "T-a1b2c3d4"
+ *
+ * This is used as a short, human-readable identifier for tunnels in
+ * user-facing contexts (bot messages, admin commands, logs).
+ */
+export function generateTunnelId(): string {
+  return `T-${crypto.randomBytes(4).toString('hex')}`;
+}
+
+/**
  * Constant-time string comparison to prevent timing attacks during key validation.
  * Both strings must be the same length for a meaningful comparison.
  *

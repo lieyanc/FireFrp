@@ -3,9 +3,11 @@
  * Returns the help text for the bot.
  */
 
+import { getVersion } from '../../version';
+
 export function handleHelp(): string {
   return [
-    '--- FireFrp 帮助 ---',
+    `--- FireFrp 帮助 (v${getVersion()}) ---`,
     '',
     '命令列表:',
     '  开服 [游戏类型] [时长(分钟)]',
