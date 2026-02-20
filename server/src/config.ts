@@ -127,6 +127,7 @@ export const config = {
 
   updates: {
     channel: (raw.updates?.channel as string) ?? 'auto',
+    githubToken: (raw.updates?.githubToken as string) ?? '',
   },
 
   bot: {
@@ -162,6 +163,7 @@ export function saveConfig(): void {
     keyPrefix: config.keyPrefix,
     updates: {
       channel: config.updates.channel,
+      githubToken: config.updates.githubToken,
     },
     bot: {
       wsUrl: config.bot.wsUrl,

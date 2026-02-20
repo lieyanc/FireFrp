@@ -18,6 +18,18 @@ const log = logger.child({ module: 'updateService' });
 const GITHUB_REPO = 'lieyanc/FireFrp';
 const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
 
+/** Build HTTP headers for GitHub API requests, with optional auth token. */
+function githubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Accept': 'application/vnd.github.v3+json',
+  };
+  const token = config.updates.githubToken;
+  if (token) {
+    headers['Authorization'] = `token ${token}`;
+  }
+  return headers;
+}
+
 export interface UpdateCheckResult {
   available: boolean;
   currentVersion: string;
@@ -57,7 +69,7 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
 
   try {
     const resp = await fetch(GITHUB_API, {
-      headers: { 'Accept': 'application/vnd.github.v3+json' },
+      headers: githubHeaders(),
       timeout: 15000,
     });
 
@@ -131,7 +143,10 @@ export async function performUpdate(info?: UpdateCheckResult): Promise<void> {
   );
 
   // Download the tarball
-  const resp = await fetch(info.downloadUrl, { timeout: 120000 });
+  const resp = await fetch(info.downloadUrl, {
+    headers: githubHeaders(),
+    timeout: 120000,
+  });
   if (!resp.ok) {
     throw new Error(`Failed to download update: ${resp.status} ${resp.statusText}`);
   }

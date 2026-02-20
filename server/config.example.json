@@ -21,7 +21,8 @@
   "keyTtlMinutes": 60,
   "keyPrefix": "ff-",
   "updates": {
-    "channel": "auto"
+    "channel": "auto",
+    "githubToken": ""
   },
   "bot": {
     "wsUrl": "ws://127.0.0.1:3001",

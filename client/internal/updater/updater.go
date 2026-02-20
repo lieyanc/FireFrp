@@ -117,7 +117,16 @@ func fetchLatestPrerelease() (*release, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases", githubRepo)
 	client := &http.Client{Timeout: 15 * time.Second}
 
-	resp, err := client.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +184,15 @@ func DoUpdate(tag string) error {
 	}()
 
 	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Get(downloadURL)
+	req, reqErr := http.NewRequest(http.MethodGet, downloadURL, nil)
+	if reqErr != nil {
+		tmpFile.Close()
+		return fmt.Errorf("failed to create download request: %w", reqErr)
+	}
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		tmpFile.Close()
 		return fmt.Errorf("failed to download update: %w", err)
