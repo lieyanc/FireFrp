@@ -37,9 +37,9 @@ export const config = {
   keyPrefix: raw.keyPrefix as string,
 
   bot: {
-    appId: raw.bot.appId as string,
-    token: raw.bot.token as string,
-    sandbox: raw.bot.sandbox as boolean,
+    wsUrl: raw.bot?.wsUrl as string ?? '',
+    token: raw.bot?.token as string ?? '',
+    selfId: raw.bot?.selfId as number ?? 0,
   },
 
   /** Derived paths */

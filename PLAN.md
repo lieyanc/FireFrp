@@ -6,6 +6,12 @@
 
 **frp 锁定版本: v0.67.0**
 
+**QQ Bot 接入: NapCatQQ (OneBot 11 协议)**
+- NapCatQQ 是基于 NTQQ 的现代化 Bot 协议实现，实现了 OneBot 11 标准
+- 通过正向 WebSocket 连接到 NapCat 的 WS 服务端，获取事件推送和调用 API
+- 使用 QQ 号 (int64) 作为用户标识，群号 (int64) 作为群标识
+- 消息采用 OneBot 11 消息段数组格式
+
 ## 架构总览
 
 ```
@@ -25,7 +31,8 @@
 │  │   :7500 admin API ◄── frpsService   │
 │  │   plugin ──► /frps-plugin/handler   │
 │  │                                      │
-│  ├── QQ Bot                             │
+│  ├── QQ Bot (OneBot 11 / NapCatQQ)     │
+│  │   └── WebSocket ──► NapCat :3001    │
 │  ├── Key管理 / Port分配                │
 │  └── JSON 数据存储                      │
 │      data/access_keys.json             │
@@ -36,6 +43,12 @@
 ┌──────── Go Client (单二进制) ──────────┐
 │  TUI (bubbletea) → 验证key → 启动frpc  │
 └─────────────────────────────────────────┘
+
+┌──────── NapCatQQ (独立部署) ──────────┐
+│  NTQQ 协议 ◄──► QQ 服务器              │
+│  :3001 WebSocket Server (OneBot 11)    │
+│  ◄── FireFrp Server WS 连接            │
+└─────────────────────────────────────────┘
 ```
 
 ## Monorepo 目录结构
@@ -45,10 +58,10 @@ FireFrp/
 ├── server/
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── .env.example
+│   ├── config.example.json
 │   └── src/
 │       ├── index.ts                 # 入口：启动 frps → Express → Bot → 定时任务
-│       ├── config.ts                # 环境变量配置 (含 FRP_VERSION=0.67.0)
+│       ├── config.ts                # JSON 配置 (含 FRP_VERSION=0.67.0)
 │       ├── db/
 │       │   ├── store.ts             # JSON 存储引擎：原子读写、文件锁
 │       │   └── models/
@@ -66,7 +79,7 @@ FireFrp/
 │       │   ├── clientRoutes.ts      # Go 客户端 API
 │       │   └── frpsPluginRoutes.ts  # frps 插件回调
 │       ├── bot/
-│       │   ├── qqBot.ts             # QQ Bot 初始化
+│       │   ├── qqBot.ts             # OneBot 11 WS 客户端 + 事件分发
 │       │   ├── messageParser.ts     # 命令解析
 │       │   └── commands/
 │       │       ├── openServer.ts    # 开服
@@ -142,7 +155,7 @@ class JsonStore<T extends { id: number }> {
   {
     "id": 1,
     "key": "ff-a1b2c3d4e5f6...",
-    "userId": "qq_openid_xxx",
+    "userId": "123456789",
     "userName": "玩家名",
     "gameType": "minecraft",
     "status": "active",
@@ -303,13 +316,225 @@ index.ts 启动流程:
 | GET | `/api/proxy/tcp/:name` | 查询指定代理详情 |
 | GET | `/api/traffic/:name` | 查询代理流量统计 |
 
-## QQ Bot 命令
+## QQ Bot (NapCatQQ / OneBot 11)
+
+### 接入方式
+
+使用 NapCatQQ 作为 QQ 协议端，通过 OneBot 11 标准协议通信。
+
+**连接模式: 正向 WebSocket (Forward WS)**
+- NapCat 启动 WS Server（默认 :3001）
+- FireFrp Server 作为 WS Client 连接到 `ws://<napcat_host>:<napcat_port>/`
+- 单条 WS 连接同时接收事件推送和发送 API 调用
+- NapCat 独立部署，负责 QQ 登录和协议处理
+
+### NapCat 配置要求
+
+NapCat 端需要配置 WebSocket Server，在 NapCat WebUI 或配置文件 `onebot11_<QQ号>.json` 中：
+
+```json
+{
+  "network": {
+    "websocketServers": [{
+      "enable": true,
+      "host": "0.0.0.0",
+      "port": 3001,
+      "messagePostFormat": "array",
+      "token": "your_access_token",
+      "heartInterval": 30000,
+      "debug": false
+    }]
+  }
+}
+```
+
+关键设置:
+- `messagePostFormat`: 必须设为 `"array"`，使用消息段数组格式
+- `token`: 用于鉴权，FireFrp 连接时需携带相同 token
+
+### OneBot 11 WebSocket 通信协议
+
+**连接认证**:
+连接时通过 URL 参数传递 token: `ws://host:port/?access_token=<token>`
+
+**事件推送 (NapCat → FireFrp)**:
+NapCat 将 QQ 事件以 JSON 推送到 WS 连接，群消息事件格式:
+
+```json
+{
+  "time": 1708300000,
+  "self_id": 1234567890,
+  "post_type": "message",
+  "message_type": "group",
+  "sub_type": "normal",
+  "message_id": 12345,
+  "group_id": 987654321,
+  "user_id": 123456789,
+  "anonymous": null,
+  "message": [
+    { "type": "at", "data": { "qq": "1234567890" } },
+    { "type": "text", "data": { "text": " 开服 mc 120" } }
+  ],
+  "raw_message": "[CQ:at,qq=1234567890] 开服 mc 120",
+  "font": 0,
+  "sender": {
+    "user_id": 123456789,
+    "nickname": "玩家名",
+    "card": "群名片",
+    "sex": "unknown",
+    "age": 0,
+    "area": "",
+    "level": "",
+    "role": "member",
+    "title": ""
+  }
+}
+```
+
+**API 调用 (FireFrp → NapCat)**:
+通过 WS 发送 JSON 调用 OneBot API，使用 `echo` 字段关联请求/响应:
+
+```json
+{
+  "action": "send_group_msg",
+  "params": {
+    "group_id": 987654321,
+    "message": [
+      { "type": "at", "data": { "qq": "123456789" } },
+      { "type": "text", "data": { "text": " 开服成功!\nAccess Key: ff-a1b2c3d4..." } }
+    ]
+  },
+  "echo": "req_001"
+}
+```
+
+**API 响应**:
+```json
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": { "message_id": 67890 },
+  "echo": "req_001"
+}
+```
+
+### 消息段格式 (Message Segments)
+
+OneBot 11 消息使用消息段数组:
+
+| 类型 | 用途 | data 字段 |
+|------|------|-----------|
+| `text` | 纯文本 | `{ "text": "内容" }` |
+| `at` | @某人 | `{ "qq": "QQ号" }` 或 `{ "qq": "all" }` |
+| `reply` | 回复消息 | `{ "id": "消息ID" }` |
+| `image` | 图片 | `{ "file": "URL或路径" }` |
+
+### qqBot.ts 设计 (OneBot 11 WS Client)
+
+```typescript
+import WebSocket from 'ws';
+
+class QQBot {
+  private ws: WebSocket | null = null;
+  private running: boolean = false;
+  private echoCounter: number = 0;
+  private pendingCalls: Map<string, { resolve, reject, timer }>;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+
+  async start(): Promise<void>;
+  // 1. 从 config 读取 bot.wsUrl 和 bot.token
+  // 2. 若 wsUrl 为空则跳过启动
+  // 3. 构造 WS URL: wsUrl + ?access_token=token
+  // 4. new WebSocket(url)
+  // 5. ws.on('open') → 标记 connected, log
+  // 6. ws.on('message') → parseEvent / matchEchoResponse
+  // 7. ws.on('close') → scheduleReconnect (指数退避, 最大 30s)
+  // 8. ws.on('error') → log, 不 crash
+
+  async stop(): Promise<void>;
+  // 1. running = false
+  // 2. 清除 reconnectTimer / heartbeatTimer
+  // 3. ws.close()
+  // 4. reject all pending calls
+
+  // ── 事件处理 ──
+  private handleEvent(data: any): void;
+  // 1. if post_type === 'message' && message_type === 'group'
+  //    → 检查消息段中是否有 at 本 bot (self_id)
+  //    → 提取 at 之后的文本内容
+  //    → 构造 BotMessage { userId, userName, groupId, content }
+  //    → 调用 processMessage()
+  //    → 若有回复 → sendGroupMessage(groupId, userId, reply)
+  // 2. if post_type === 'meta_event' && meta_event_type === 'heartbeat'
+  //    → 更新心跳时间戳, log.debug
+  // 3. if post_type === 'meta_event' && meta_event_type === 'lifecycle'
+  //    → log 生命周期事件 (connect/enable)
+
+  // ── API 调用 ──
+  private callApi(action: string, params: any): Promise<any>;
+  // 1. echoCounter++, echo = `firefrp_${echoCounter}`
+  // 2. 创建 Promise, 存入 pendingCalls[echo]
+  // 3. ws.send(JSON.stringify({ action, params, echo }))
+  // 4. 设置 10s 超时 → reject
+  // 5. 收到匹配 echo 的响应 → resolve(data)
+
+  async sendGroupMessage(groupId: number, userId: number, text: string): Promise<void>;
+  // callApi('send_group_msg', {
+  //   group_id: groupId,
+  //   message: [
+  //     { type: 'at', data: { qq: String(userId) } },
+  //     { type: 'text', data: { text: ' ' + text } }
+  //   ]
+  // })
+
+  // ── 重连 ──
+  private scheduleReconnect(): void;
+  // 指数退避: 1s → 2s → 4s → 8s → 16s → 30s (max)
+  // 每次重连调用 connect()
+}
+```
+
+### 消息解析流程
+
+```
+WS 收到群消息事件
+  → 检查 message[] 是否包含 at 本 bot 的消息段
+  → 提取 at 之后的 text 消息段内容，拼接成纯文本
+  → parseCommand(text)
+  → handleXxx() 获取回复文本
+  → sendGroupMessage() 回复到群
+```
+
+### 配置变更
+
+**config.json** `bot` 字段:
+
+```json
+{
+  "bot": {
+    "wsUrl": "ws://127.0.0.1:3001",
+    "token": "",
+    "selfId": 0
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `wsUrl` | string | NapCat WebSocket Server 地址，为空则不启动 Bot |
+| `token` | string | NapCat 配置的 access_token，为空则不鉴权 |
+| `selfId` | number | Bot 自身 QQ 号，用于判断 @Bot 消息 (首次连接后可自动获取) |
+
+### QQ Bot 命令
 
 | 命令 | 示例 | 说明 |
 |------|------|------|
 | `开服` | `@Bot 开服 Minecraft` / `@Bot 开服 mc 120` | 生成 key + 分配端口，默认60分钟 |
 | `状态` | `@Bot 状态` | 查看当前用户活跃隧道 |
 | `帮助` | `@Bot 帮助` | 显示帮助 |
+
+用户标识使用 QQ 号 (user_id)，群标识使用群号 (group_id)。
 
 限制：每用户最多 3 个同时活跃 key，每群每小时最多 10 次开服。
 
@@ -344,7 +569,8 @@ create → [pending] → frps Login → [active] → TTL到期 → [expired]
 |------|------|
 | Server | Node.js 18+ / TypeScript / Express / pino |
 | 数据存储 | JSON 文件 (原子写入) |
-| QQ Bot | QQ 官方 Bot API (REST + WebSocket) |
+| QQ Bot | NapCatQQ + OneBot 11 协议 (正向 WebSocket) |
+| WS 客户端 | ws (npm) |
 | 隧道 | frps v0.67.0 (由 Node.js 管理的子进程) |
 | Client | Go 1.21+ / bubbletea / lipgloss / fatedier/frp v0.67.0 (library) |
 
@@ -381,13 +607,22 @@ create → [pending] → frps Login → [active] → TTL到期 → [expired]
 
 验证: 编译二进制 → TUI 输入有效 key → 隧道建立 → Minecraft 可连接
 
-### Phase 4: QQ Bot
-1. messageParser
-2. commands: help → openServer → status
-3. qqBot.ts 初始化 + 事件分发
-4. 接入 index.ts
+### Phase 4: QQ Bot (NapCatQQ / OneBot 11)
+1. 添加 ws 依赖: `npm install ws @types/ws`
+2. 更新 config.ts: bot 字段改为 `{ wsUrl, token, selfId }`
+3. 更新 config.example.json 对应字段
+4. 重写 qqBot.ts: OneBot 11 正向 WebSocket 客户端
+   - WS 连接 + 鉴权 (access_token URL 参数)
+   - 事件分发: 监听群消息事件，检查 @Bot
+   - API 调用: send_group_msg (echo 关联请求/响应)
+   - 自动重连 (指数退避)
+   - 心跳事件处理
+5. 更新 messageParser.ts: 适配 OneBot 11 消息段提取
+6. 更新 commands: userId 类型从 OpenID 改为 QQ 号 (string 表示)
+7. 更新 BotMessage 接口: 适配 OneBot 11 字段
+8. 接入 index.ts (现有 start/stop 生命周期不变)
 
-验证: QQ 群 @Bot 开服 → 获得 key → 客户端连接 → 全链路通
+验证: NapCat 运行 + FireFrp 连接 → QQ 群 @Bot 开服 → 获得 key → 客户端连接 → 全链路通
 
 ### Phase 5: 完善
 1. 错误处理审查

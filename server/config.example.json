@@ -15,8 +15,8 @@
   "keyTtlMinutes": 60,
   "keyPrefix": "ff-",
   "bot": {
-    "appId": "",
+    "wsUrl": "ws://127.0.0.1:3001",
     "token": "",
-    "sandbox": true
+    "selfId": 0
   }
 }

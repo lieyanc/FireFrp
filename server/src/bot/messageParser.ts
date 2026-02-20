@@ -1,12 +1,18 @@
 /**
  * QQ Bot message command parser.
- * Parses command text after @Bot mention.
+ * Handles OneBot 11 message segment arrays and command parsing.
  */
 
 export interface ParsedCommand {
   command: string;
   args: string[];
   raw: string;
+}
+
+/** OneBot 11 message segment. */
+export interface MessageSegment {
+  type: string;
+  data: Record<string, string>;
 }
 
 /**
@@ -20,6 +26,41 @@ const COMMAND_ALIASES: Record<string, string> = {
   '帮助': 'help',
   'help': 'help',
 };
+
+/**
+ * Extract text content from OneBot 11 message segments after the @Bot mention.
+ *
+ * Scans through message segments, finds the `at` segment targeting selfId,
+ * then concatenates all subsequent `text` segments.
+ *
+ * @param segments - OneBot 11 message segment array
+ * @param selfId - The bot's own QQ number
+ * @returns The extracted text content, or null if the bot is not mentioned
+ */
+export function extractTextAfterAt(segments: MessageSegment[], selfId: number): string | null {
+  const selfIdStr = String(selfId);
+  let foundAt = false;
+
+  const textParts: string[] = [];
+
+  for (const seg of segments) {
+    if (!foundAt) {
+      if (seg.type === 'at' && seg.data.qq === selfIdStr) {
+        foundAt = true;
+      }
+      continue;
+    }
+    // After the @Bot mention, collect text segments
+    if (seg.type === 'text') {
+      textParts.push(seg.data.text);
+    }
+  }
+
+  if (!foundAt) return null;
+
+  const text = textParts.join('').trim();
+  return text || null;
+}
 
 /**
  * Parse a message text into a structured command.
