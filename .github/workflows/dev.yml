@@ -147,3 +147,14 @@ jobs:
             --notes "Automated dev build from commit ${{ github.sha }}" \
             --prerelease \
             dist/*
+
+      - name: Clean up old dev pre-releases (keep latest 5)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --json tagName,isPrerelease \
+            --jq '[.[] | select(.isPrerelease)] | sort_by(.tagName) | reverse | .[5:][] | .tagName' \
+          | while read -r tag; do
+              echo "Deleting old dev release: $tag"
+              gh release delete "$tag" --yes --cleanup-tag || true
+            done
