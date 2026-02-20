@@ -134,6 +134,16 @@ func (w *logWriter) detectStatus(msg string) {
 				Message: "连接服务器失败，正在重试...",
 			})
 		}
+	case strings.Contains(msg, "login to the server failed"):
+		sendStatus(w.statusCh, StatusUpdate{
+			Status:  StatusRejected,
+			Message: "服务器拒绝连接，Access Key 可能已过期或被撤销",
+		})
+	case strings.Contains(msg, "authorization failed"):
+		sendStatus(w.statusCh, StatusUpdate{
+			Status:  StatusRejected,
+			Message: "认证失败，Access Key 无效",
+		})
 	}
 }
 

@@ -5,6 +5,7 @@ import { isRejected, addToRejectSet } from '../services/expiryService';
 import { logger } from '../utils/logger';
 import { qqBot } from '../bot/qqBot';
 import { config } from '../config';
+import { getGameDisplayName } from '../bot/commands/openServer';
 
 const log = logger.child({ module: 'frpsPlugin' });
 const router = Router();
@@ -126,7 +127,7 @@ function handleLogin(content: Record<string, unknown>): object {
           Number(activated.groupId),
           Number(activated.userId),
           activated.userName,
-          activated.gameType,
+          getGameDisplayName(activated.gameType),
           addr,
         ).catch((err) => {
           log.error({ err, groupId: activated.groupId }, 'Failed to send tunnel notification');
@@ -232,7 +233,9 @@ function handlePing(content: Record<string, unknown>): object {
 
 /**
  * Handle CloseProxy operation.
- * Log the event for auditing.
+ * When a tunnel is closed, transition the key to 'disconnected' so the port
+ * is released and the user can request a new key. Since access tokens can
+ * only be used once, the key is destroyed on disconnect.
  */
 function handleCloseProxy(content: Record<string, unknown>): object {
   const proxyName = content.proxy_name as string | undefined;
@@ -241,10 +244,32 @@ function handleCloseProxy(content: Record<string, unknown>): object {
   const accessKey = metas?.access_key;
 
   if (accessKey) {
-    const record = keyService.getByKey(accessKey);
-    if (record) {
-      logAuditEvent('proxy_closed', record.id, `proxy=${proxyName}`);
-      log.info({ keyId: record.id, proxyName }, 'CloseProxy: logged');
+    const disconnected = keyService.disconnect(accessKey);
+    if (disconnected) {
+      // Add to reject set so any reconnection attempts are immediately rejected
+      addToRejectSet(accessKey);
+
+      logAuditEvent('proxy_closed', disconnected.id, `proxy=${proxyName}`);
+      log.info({ keyId: disconnected.id, proxyName }, 'CloseProxy: tunnel disconnected and key destroyed');
+
+      // Notify the originating group that the tunnel has disconnected
+      if (disconnected.groupId) {
+        qqBot.notifyTunnelDisconnected(
+          Number(disconnected.groupId),
+          Number(disconnected.userId),
+          disconnected.userName,
+          getGameDisplayName(disconnected.gameType),
+        ).catch((err) => {
+          log.error({ err, groupId: disconnected.groupId }, 'Failed to send tunnel disconnect notification');
+        });
+      }
+    } else {
+      // Key was not active (already expired/revoked/disconnected), just log
+      const record = keyService.getByKey(accessKey);
+      if (record) {
+        logAuditEvent('proxy_closed', record.id, `proxy=${proxyName}, status=${record.status}`);
+      }
+      log.info({ proxyName }, 'CloseProxy: logged (key not active)');
     }
   } else {
     log.info({ proxyName }, 'CloseProxy: no access_key, audit skipped');

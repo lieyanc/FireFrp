@@ -531,6 +531,8 @@ func mapErrorCode(code, message string) string {
 		return "Access Key 已被使用"
 	case "KEY_REVOKED":
 		return "Access Key 已被撤销"
+	case "KEY_DISCONNECTED":
+		return "Access Key 对应的隧道已断开，请重新获取"
 	default:
 		if message != "" {
 			return message

@@ -4,6 +4,7 @@ import { frpManager } from '../../services/frpManager';
 import { addToRejectSet } from '../../services/expiryService';
 import { config, saveConfig } from '../../config';
 import { logger } from '../../utils/logger';
+import { getGameDisplayName } from './openServer';
 
 const log = logger.child({ module: 'bot:admin' });
 
@@ -27,7 +28,7 @@ export function handleTunnels(): string {
     const remaining = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 60000));
     const status = key.status === 'active' ? '已连接' : '待连接';
 
-    lines.push(`[${key.id}] ${status} | ${key.gameType} | ${key.userName}`);
+    lines.push(`[${key.id}] ${status} | ${getGameDisplayName(key.gameType)} | ${key.userName}`);
     lines.push(`  端口: ${key.remotePort} | 剩余: ${remaining}分钟`);
   }
 
@@ -61,7 +62,7 @@ export function handleKick(args: string[]): string {
   return [
     `已撤销隧道 [${keyId}]`,
     `  用户: ${revoked.userName}`,
-    `  游戏: ${revoked.gameType}`,
+    `  游戏: ${getGameDisplayName(revoked.gameType)}`,
     `  端口: ${revoked.remotePort}`,
     '客户端将在下次心跳时被断开。',
   ].join('\n');

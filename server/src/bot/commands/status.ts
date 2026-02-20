@@ -1,6 +1,7 @@
 import * as keyService from '../../services/keyService';
 import { frpManager } from '../../services/frpManager';
 import { logger } from '../../utils/logger';
+import { getGameDisplayName } from './openServer';
 
 const log = logger.child({ module: 'bot:status' });
 
@@ -42,7 +43,7 @@ export function handleStatus(userId: string): string {
       const expiresAt = new Date(key.expiresAt);
       const remaining = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 60000));
 
-      lines.push(`  [${key.status === 'active' ? '已连接' : '待连接'}] ${key.gameType}`);
+      lines.push(`  [${key.status === 'active' ? '已连接' : '待连接'}] ${getGameDisplayName(key.gameType)}`);
       lines.push(`    Key: ${key.key.slice(0, 12)}...`);
       lines.push(`    端口: ${key.remotePort}`);
       lines.push(`    剩余: ${remaining} 分钟`);

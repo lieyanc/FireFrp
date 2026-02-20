@@ -21,6 +21,26 @@ const GAME_ALIASES: Record<string, string> = {
 };
 
 /**
+ * Display names for game types (properly cased for user-facing output).
+ */
+const GAME_DISPLAY_NAMES: Record<string, string> = {
+  minecraft: 'Minecraft',
+  terraria: 'Terraria',
+  dont_starve_together: "Don't Starve Together",
+  starbound: 'Starbound',
+  factorio: 'Factorio',
+  valheim: 'Valheim',
+  palworld: 'Palworld',
+};
+
+/**
+ * Get the display name for a game type canonical name.
+ */
+export function getGameDisplayName(gameType: string): string {
+  return GAME_DISPLAY_NAMES[gameType] ?? gameType;
+}
+
+/**
  * Set of all valid canonical game type names (for whitelist validation).
  */
 const VALID_GAME_TYPES = new Set(Object.values(GAME_ALIASES));
@@ -57,7 +77,7 @@ export function handleOpenServer(
 
   // SECURITY: reject unknown game types instead of allowing arbitrary strings
   if (!gameType) {
-    const validTypes = [...new Set(Object.values(GAME_ALIASES))].join(', ');
+    const validTypes = [...new Set(Object.values(GAME_ALIASES))].map(t => getGameDisplayName(t)).join(', ');
     return `不支持的游戏类型: "${rawGameType}"\n支持的类型: ${validTypes}`;
   }
 
@@ -99,7 +119,7 @@ export function handleOpenServer(
     );
 
     return [
-      `开服成功! 游戏: ${gameType}`,
+      `开服成功! 游戏: ${getGameDisplayName(gameType)}`,
       ``,
       `Access Key: ${accessKey.key}`,
       `远程端口: ${accessKey.remotePort}`,

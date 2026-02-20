@@ -70,6 +70,8 @@ export function validate(key: string): { accessKey?: AccessKey; error?: string }
       return { error: 'KEY_REVOKED' };
     case 'active':
       return { error: 'KEY_ALREADY_USED' };
+    case 'disconnected':
+      return { error: 'KEY_DISCONNECTED' };
     case 'pending': {
       // Check if the key has expired by time even though status is still pending
       const now = new Date();
@@ -165,6 +167,32 @@ export function revoke(keyId: number): AccessKey | null {
   if (updated) {
     logAuditEvent('key_revoked', keyId, `previous_status=${record.status}`);
     log.info({ keyId }, 'Access key revoked');
+  }
+
+  return updated;
+}
+
+/**
+ * Disconnect a key: transition from active to disconnected.
+ * Called when the frps CloseProxy callback indicates a tunnel has closed.
+ * Since access tokens can only be used once, the key is destroyed and the
+ * user must request a new one to reconnect.
+ */
+export function disconnect(key: string): AccessKey | null {
+  const record = accessKeyStore.findBy('key', key);
+  if (!record || record.status !== 'active') {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  const updated = accessKeyStore.update(record.id, {
+    status: 'disconnected',
+    updatedAt: now,
+  });
+
+  if (updated) {
+    logAuditEvent('key_disconnected', updated.id, `tunnel closed, port=${updated.remotePort}`);
+    log.info({ keyId: updated.id, proxyName: updated.proxyName }, 'Access key disconnected (tunnel closed)');
   }
 
   return updated;

@@ -9,7 +9,7 @@ export interface AccessKey {
   userName: string;
   groupId?: string;
   gameType: string;
-  status: 'pending' | 'active' | 'expired' | 'revoked';
+  status: 'pending' | 'active' | 'expired' | 'revoked' | 'disconnected';
   remotePort: number;
   proxyName: string;
   clientId?: string;

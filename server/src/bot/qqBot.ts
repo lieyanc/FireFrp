@@ -395,6 +395,34 @@ class QQBot {
   }
 
   /**
+   * Notify a group that a tunnel has been disconnected.
+   */
+  async notifyTunnelDisconnected(
+    groupId: number,
+    userId: number,
+    userName: string,
+    gameType: string,
+  ): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      log.warn('Cannot send tunnel disconnect notification: WebSocket not connected');
+      return;
+    }
+
+    const message: MessageSegment[] = [
+      { type: 'text', data: { text: `来自` } },
+      { type: 'at', data: { qq: String(userId) } },
+      { type: 'text', data: { text: `的${gameType}隧道已断开` } },
+    ];
+
+    await this.callApi('send_group_msg', {
+      group_id: groupId,
+      message,
+    });
+
+    log.info({ groupId, userId, gameType }, 'Tunnel disconnected notification sent');
+  }
+
+  /**
    * Broadcast a text message to all configured broadcast groups.
    * Unlike sendGroupMessage, this does not @mention anyone.
    */

@@ -130,6 +130,7 @@ router.post('/api/v1/validate', (req: Request, res: Response) => {
         KEY_EXPIRED: 410,
         KEY_ALREADY_USED: 409,
         KEY_REVOKED: 403,
+        KEY_DISCONNECTED: 410,
       };
 
       const messageMap: Record<string, string> = {
@@ -137,6 +138,7 @@ router.post('/api/v1/validate', (req: Request, res: Response) => {
         KEY_EXPIRED: 'Access key has expired',
         KEY_ALREADY_USED: 'Access key is already in use',
         KEY_REVOKED: 'Access key has been revoked',
+        KEY_DISCONNECTED: 'Access key tunnel has been disconnected',
       };
 
       const httpStatus = statusMap[result.error] ?? 400;
