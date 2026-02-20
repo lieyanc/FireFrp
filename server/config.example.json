@@ -1,0 +1,22 @@
+{
+  "serverPort": 9000,
+  "frpVersion": "0.67.0",
+  "frps": {
+    "bindAddr": "0.0.0.0",
+    "bindPort": 7000,
+    "authToken": "change_me_to_a_random_string",
+    "adminAddr": "127.0.0.1",
+    "adminPort": 7500,
+    "adminUser": "admin",
+    "adminPassword": "change_me_admin_password"
+  },
+  "portRangeStart": 10000,
+  "portRangeEnd": 60000,
+  "keyTtlMinutes": 60,
+  "keyPrefix": "ff-",
+  "bot": {
+    "appId": "",
+    "token": "",
+    "sandbox": true
+  }
+}
