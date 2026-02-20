@@ -1,6 +1,7 @@
 import { mcPing, McPingResult } from './mcPing';
 import { config } from '../config';
 import { logger } from '../utils/logger';
+import { getMessageHeader } from '../version';
 
 const log = logger.child({ module: 'motdCheck' });
 
@@ -132,6 +133,7 @@ async function performCheck(tunnelId: string, isLast: boolean): Promise<void> {
     log.info({ tunnelId, motd: result.motd, players: result.onlinePlayers }, 'MOTD check succeeded');
 
     const message = [
+      `${getMessageHeader()}`,
       `Minecraft 服务器已就绪 (${tunnelId})`,
       `MOTD: ${result.motd}`,
       `在线人数: ${result.onlinePlayers}/${result.maxPlayers}`,
@@ -152,6 +154,7 @@ async function performCheck(tunnelId: string, isLast: boolean): Promise<void> {
       log.warn({ tunnelId }, 'All MOTD checks failed');
 
       const message = [
+        `${getMessageHeader()}`,
         `Minecraft 服务器状态检测失败 (${tunnelId})`,
         `在 10 分钟内未检测到服务器 MOTD 响应。`,
         `请确认 MC 服务端已启动并绑定到正确端口。`,

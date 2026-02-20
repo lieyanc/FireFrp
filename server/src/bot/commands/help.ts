@@ -3,13 +3,13 @@
  * Returns the help text for the bot.
  */
 
-import { getDisplayVersion } from '../../version';
+import { getDisplayVersion, getMessageHeader } from '../../version';
 import { config } from '../../config';
 
 export function handleHelp(): string {
   const maxTtl = config.keyTtlMinutes;
   return [
-    `--- FireFrp 帮助 (${getDisplayVersion()}) ---`,
+    `--- ${getMessageHeader()} | 帮助 ---`,
     '',
     '命令列表:',
     '  开服 [游戏类型] [时长(分钟)]',

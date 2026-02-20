@@ -3,6 +3,7 @@ import { config } from '../../config';
 import { queryMotd } from '../../services/motdCheckService';
 import { getGameDisplayName } from './openServer';
 import { logger } from '../../utils/logger';
+import { getMessageHeader } from '../../version';
 
 const log = logger.child({ module: 'bot:list' });
 
@@ -22,7 +23,7 @@ export async function handleList(groupId: string): Promise<string> {
   }
 
   const lines: string[] = [];
-  lines.push(`--- 本群隧道列表 (${tunnels.length} 个) ---`);
+  lines.push(`--- ${getMessageHeader()} | 本群隧道列表 (${tunnels.length} 个) ---`);
   lines.push('');
 
   for (const tunnel of tunnels) {

@@ -4,7 +4,7 @@
  */
 
 import { config, saveConfig } from '../../config';
-import { getVersion } from '../../version';
+import { getVersion, getMessageHeader } from '../../version';
 
 const VALID_CHANNELS = ['auto', 'dev', 'stable'] as const;
 
@@ -14,6 +14,7 @@ export function handleChannel(args: string[]): string {
     const ch = config.updates.channel;
     const ver = getVersion();
     return (
+      `${getMessageHeader()}\n` +
       `当前更新通道: ${ch}\n` +
       `当前版本: ${ver}\n` +
       `可选: auto | dev | stable`
@@ -28,5 +29,5 @@ export function handleChannel(args: string[]): string {
   (config.updates as { channel: string }).channel = target;
   saveConfig();
 
-  return `更新通道已切换为: ${target}`;
+  return `${getMessageHeader()}\n更新通道已切换为: ${target}`;
 }

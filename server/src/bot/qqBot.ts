@@ -16,6 +16,7 @@ import {
 import { handleUpdate } from './commands/update';
 import { handleChannel } from './commands/channel';
 import { handleList } from './commands/list';
+import { getMessageHeader } from '../version';
 
 const log = logger.child({ module: 'qqBot' });
 
@@ -39,6 +40,7 @@ const ADMIN_COMMANDS = new Set(['tunnels', 'kick', 'addgroup', 'rmgroup', 'group
  */
 function getAvailableCommands(isAdmin: boolean): string {
   const lines: string[] = [];
+  lines.push(getMessageHeader());
   lines.push('可用命令:');
   lines.push('  开服 [游戏] [时长]  创建隧道');
   lines.push('  状态  查看我的隧道');
@@ -64,7 +66,10 @@ function getAvailableCommands(isAdmin: boolean): string {
  * Process an incoming bot message and return a response string.
  * This is the core dispatch logic, independent of the transport layer.
  */
-export function processMessage(msg: BotMessage): string | Promise<string> | null {
+export function processMessage(
+  msg: BotMessage,
+  sendProgress?: (text: string) => Promise<void>,
+): string | Promise<string> | null {
   const parsed = parseCommand(msg.content);
 
   if (!parsed) {
@@ -97,7 +102,7 @@ export function processMessage(msg: BotMessage): string | Promise<string> | null
       case 'server':
         return handleServerStatus();
       case 'update':
-        return handleUpdate();
+        return handleUpdate(sendProgress ?? (async () => {}));
       case 'channel':
         return handleChannel(parsed.args);
       default:
@@ -297,7 +302,9 @@ class QQBot {
       'Processing bot command',
     );
 
-    const result = processMessage(msg);
+    const result = processMessage(msg, async (reply: string) => {
+      await this.sendGroupMessage(groupId, userId, reply);
+    });
     if (result === null) return;
 
     // Handle both sync and async responses
@@ -391,7 +398,7 @@ class QQBot {
     }
 
     const message: MessageSegment[] = [
-      { type: 'text', data: { text: `来自` } },
+      { type: 'text', data: { text: `${getMessageHeader()}\n来自` } },
       { type: 'at', data: { qq: String(userId) } },
       { type: 'text', data: { text: `的${gameType}隧道成功建立 (${tunnelId})\n公网连接地址: ${addr}` } },
     ];
@@ -420,7 +427,7 @@ class QQBot {
     }
 
     const message: MessageSegment[] = [
-      { type: 'text', data: { text: `来自` } },
+      { type: 'text', data: { text: `${getMessageHeader()}\n来自` } },
       { type: 'at', data: { qq: String(userId) } },
       { type: 'text', data: { text: `的${gameType}隧道已断开 (${tunnelId})` } },
     ];

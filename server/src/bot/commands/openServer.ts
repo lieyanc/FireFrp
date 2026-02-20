@@ -1,6 +1,7 @@
 import * as keyService from '../../services/keyService';
 import { config } from '../../config';
 import { logger } from '../../utils/logger';
+import { getMessageHeader } from '../../version';
 
 const log = logger.child({ module: 'bot:openServer' });
 
@@ -119,6 +120,7 @@ export function handleOpenServer(
     );
 
     return [
+      `${getMessageHeader()}`,
       `隧道创建成功! 游戏: ${getGameDisplayName(gameType)}`,
       ``,
       `隧道编号: ${accessKey.tunnelId}`,

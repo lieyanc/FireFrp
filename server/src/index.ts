@@ -11,9 +11,11 @@ import { checkForUpdate, performUpdate } from './services/updateService';
 import * as expiryService from './services/expiryService';
 import { stopRateLimitCleanup } from './api/clientRoutes';
 import { qqBot } from './bot/qqBot';
-import { getDisplayVersion, getVersion } from './version';
+import { getDisplayVersion, getVersion, getMessageHeader } from './version';
 import { cancelAll as cancelAllMotdChecks } from './services/motdCheckService';
+import * as childProcess from 'child_process';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 const log = logger.child({ module: 'main' });
@@ -41,6 +43,44 @@ if (process.argv.includes('--update')) {
   });
 }
 
+/**
+ * On Linux, find and kill any stale process occupying the given port.
+ * This handles the case where a previous server instance crashed without
+ * releasing the port. Errors are logged but never block startup.
+ */
+function killPortOccupier(port: number): void {
+  if (os.platform() !== 'linux') return;
+
+  try {
+    const output = childProcess.execSync(`lsof -ti :${port}`, {
+      encoding: 'utf-8',
+      timeout: 5000,
+    }).trim();
+
+    if (!output) return;
+
+    const pids = output
+      .split('\n')
+      .map((s) => parseInt(s, 10))
+      .filter((pid) => !isNaN(pid) && pid !== process.pid);
+
+    if (pids.length === 0) return;
+
+    for (const pid of pids) {
+      try {
+        process.kill(pid, 'SIGKILL');
+        log.warn({ pid, port }, 'Killed stale process occupying port');
+      } catch (err: any) {
+        if (err.code !== 'ESRCH') {
+          log.warn({ pid, port, err }, 'Failed to kill stale process');
+        }
+      }
+    }
+  } catch {
+    // lsof returns exit code 1 when no matches — this is normal
+  }
+}
+
 async function main(): Promise<void> {
   log.info('FireFrp Server starting...');
 
@@ -66,6 +106,9 @@ async function main(): Promise<void> {
   accessKeyStore.load();
   auditLogStore.load();
   log.info('JSON stores initialized');
+
+  // ── Step 2.5: Kill stale processes occupying our port (Linux only) ──
+  killPortOccupier(config.serverPort);
 
   // ── Step 3: Start Express API ──
   // This must start before frps, because frps will call back to our plugin handler
@@ -138,8 +181,8 @@ async function main(): Promise<void> {
     try {
       if (qqBot.isConnected()) {
         const msg =
-          `🔴 FireFrp 节点下线 (${getDisplayVersion()})\n` +
-          `节点: ${config.server.name} (${config.server.id})`;
+          `${getMessageHeader()}\n` +
+          `🔴 节点下线`;
         await qqBot.broadcastGroupMessage(msg);
         log.info('Offline broadcast sent');
       }
@@ -212,8 +255,8 @@ async function main(): Promise<void> {
     await new Promise((r) => setTimeout(r, 2000));
     if (qqBot.isConnected()) {
       const msg =
-        `🟢 FireFrp 节点上线 (${getDisplayVersion()})\n` +
-        `节点: ${config.server.name} (${config.server.id})\n` +
+        `${getMessageHeader()}\n` +
+        `🟢 节点上线\n` +
         `地址: ${config.server.publicAddr}\n` +
         `配置: ${config.server.description}`;
       await qqBot.broadcastGroupMessage(msg);
@@ -237,7 +280,8 @@ async function main(): Promise<void> {
         const ver = getDisplayVersion();
         const downloadUrl = `https://dl.repo.chycloud.top/lieyanc/FireFrp/${ver}`;
         const updateMsg =
-          `🔄 FireFrp 已更新至 ${ver}\n` +
+          `${getMessageHeader()}\n` +
+          `🔄 已更新至 ${ver}\n` +
           `客户端下载: ${downloadUrl}`;
         await qqBot.broadcastGroupMessage(updateMsg, config.bot.allowedGroups);
         log.info({ version: ver, downloadUrl }, 'Update download broadcast sent');

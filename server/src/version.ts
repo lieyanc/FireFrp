@@ -5,6 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { config } from './config';
 
 let cachedVersion: string | null = null;
 
@@ -38,4 +39,12 @@ export function getDisplayVersion(): string {
     return `v${v}`;
   }
   return v;
+}
+
+/**
+ * Get the standard message header for QQ group messages.
+ * Format: FireFrp ({version}) [{serverName}({serverId})]
+ */
+export function getMessageHeader(): string {
+  return `FireFrp (${getDisplayVersion()}) [${config.server.name}(${config.server.id})]`;
 }

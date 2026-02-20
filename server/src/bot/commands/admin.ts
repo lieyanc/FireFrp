@@ -5,7 +5,7 @@ import { addToRejectSet } from '../../services/expiryService';
 import { config, saveConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import { getGameDisplayName } from './openServer';
-import { getDisplayVersion } from '../../version';
+import { getDisplayVersion, getMessageHeader } from '../../version';
 
 const log = logger.child({ module: 'bot:admin' });
 
@@ -21,7 +21,7 @@ export function handleTunnels(): string {
   }
 
   const lines: string[] = [];
-  lines.push(`--- 活跃隧道 (${keys.length} 个) | ${getDisplayVersion()} ---`);
+  lines.push(`--- ${getMessageHeader()} | 活跃隧道 (${keys.length} 个) ---`);
   lines.push('');
 
   for (const key of keys) {
@@ -62,6 +62,7 @@ export function handleKick(args: string[]): string {
   log.info({ tunnelId, userId: revoked.userId, proxyName: revoked.proxyName }, 'Admin kicked tunnel');
 
   return [
+    `${getMessageHeader()}`,
     `已撤销隧道 [${tunnelId}]`,
     `  用户: ${revoked.userName}`,
     `  游戏: ${getGameDisplayName(revoked.gameType)}`,
@@ -151,7 +152,7 @@ export function handleGroups(): string {
   }
 
   const lines: string[] = [];
-  lines.push(`--- 群白名单 (${allowed.length} 个) ---`);
+  lines.push(`--- ${getMessageHeader()} | 群白名单 (${allowed.length} 个) ---`);
   for (const g of allowed) {
     lines.push(`  ${g}`);
   }
@@ -169,9 +170,8 @@ export async function handleServerStatus(): Promise<string> {
   const managerStatus = frpManager.getStatus();
   const lines: string[] = [];
 
-  lines.push('--- 服务器状态 ---');
+  lines.push(`--- ${getMessageHeader()} | 服务器状态 ---`);
   lines.push('');
-  lines.push(`FireFrp 版本: ${getDisplayVersion()}`);
   lines.push(`frps 状态: ${managerStatus.state}`);
 
   if (managerStatus.uptime !== null) {
