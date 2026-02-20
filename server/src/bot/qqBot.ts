@@ -15,6 +15,7 @@ import {
 } from './commands/admin';
 import { handleUpdate } from './commands/update';
 import { handleChannel } from './commands/channel';
+import { handleList } from './commands/list';
 
 const log = logger.child({ module: 'qqBot' });
 
@@ -41,6 +42,7 @@ function getAvailableCommands(isAdmin: boolean): string {
   lines.push('可用命令:');
   lines.push('  开服 [游戏] [时长]  创建隧道');
   lines.push('  状态  查看我的隧道');
+  lines.push('  列表  本群隧道列表');
   lines.push('  帮助  详细帮助');
 
   if (isAdmin) {
@@ -113,6 +115,9 @@ export function processMessage(msg: BotMessage): string | Promise<string> | null
 
     case 'status':
       return handleStatus(msg.userId);
+
+    case 'list':
+      return handleList(msg.groupId);
 
     default:
       return '未知命令，输入"帮助"查看可用命令。';

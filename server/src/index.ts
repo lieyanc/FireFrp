@@ -12,6 +12,7 @@ import * as expiryService from './services/expiryService';
 import { stopRateLimitCleanup } from './api/clientRoutes';
 import { qqBot } from './bot/qqBot';
 import { getDisplayVersion, getVersion } from './version';
+import { cancelAll as cancelAllMotdChecks } from './services/motdCheckService';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -174,6 +175,9 @@ async function main(): Promise<void> {
 
     // Stop expiry service
     expiryService.stop();
+
+    // Cancel all pending MOTD checks
+    cancelAllMotdChecks();
 
     // Stop frps
     try {

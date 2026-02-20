@@ -42,6 +42,8 @@ const COMMAND_ALIASES: Record<string, string> = {
   'update': 'update',
   '通道': 'channel',
   'channel': 'channel',
+  '列表': 'list',
+  'list': 'list',
 };
 
 /**

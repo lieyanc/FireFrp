@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { qqBot } from '../bot/qqBot';
 import { config } from '../config';
 import { getGameDisplayName } from '../bot/commands/openServer';
+import { startMotdCheck, cancelMotdCheck } from '../services/motdCheckService';
 
 const log = logger.child({ module: 'frpsPlugin' });
 const router = Router();
@@ -133,6 +134,17 @@ function handleLogin(content: Record<string, unknown>): object {
         ).catch((err) => {
           log.error({ err, groupId: activated.groupId }, 'Failed to send tunnel notification');
         });
+
+        // Start MOTD auto-check for Minecraft tunnels
+        if (activated.gameType === 'minecraft') {
+          startMotdCheck(
+            activated.tunnelId,
+            Number(activated.groupId),
+            Number(activated.userId),
+            activated.userName,
+            activated.remotePort,
+          );
+        }
       }
 
       return allow();
@@ -249,6 +261,9 @@ function handleCloseProxy(content: Record<string, unknown>): object {
     if (disconnected) {
       // Add to reject set so any reconnection attempts are immediately rejected
       addToRejectSet(accessKey);
+
+      // Cancel any pending MOTD checks for this tunnel
+      cancelMotdCheck(disconnected.tunnelId);
 
       logAuditEvent('proxy_closed', disconnected.id, `tunnelId=${disconnected.tunnelId}, proxy=${proxyName}`);
       log.info({ keyId: disconnected.id, tunnelId: disconnected.tunnelId, proxyName }, 'CloseProxy: tunnel disconnected and key destroyed');

@@ -214,6 +214,15 @@ export function getActiveByUser(userId: string): AccessKey[] {
 }
 
 /**
+ * Get all active/pending keys for a specific group.
+ */
+export function getActiveByGroup(groupId: string): AccessKey[] {
+  return accessKeyStore.filter(
+    (k) => k.groupId === groupId && (k.status === 'active' || k.status === 'pending'),
+  );
+}
+
+/**
  * Find a key record by the key string.
  */
 export function getByKey(key: string): AccessKey | undefined {
