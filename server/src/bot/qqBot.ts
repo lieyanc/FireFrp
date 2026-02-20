@@ -46,7 +46,7 @@ function getAvailableCommands(isAdmin: boolean): string {
     lines.push('');
     lines.push('管理员命令:');
     lines.push('  隧道列表  查看所有隧道');
-    lines.push('  踢掉 <ID>  撤销隧道');
+    lines.push('  踢掉 <隧道ID>  撤销隧道');
     lines.push('  服务器  服务器状态');
     lines.push('  群列表  查看白名单');
     lines.push('  加群/移群 <群号>');

@@ -59,7 +59,7 @@ func (c *Config) Validate() error {
 func ParseFlags() *Config {
 	cfg := &Config{}
 
-	flag.StringVar(&cfg.ServerListURL, "server-list", "", "Remote server list JSON URL (hosted on object storage)")
+	flag.StringVar(&cfg.ServerListURL, "server-list", "https://static.lieyan.work/project/FireFrp/config/server-list.json", "Remote server list JSON URL (hosted on object storage)")
 	flag.StringVar(&cfg.ServerURL, "server", "http://localhost:9001", "FireFrp management API URL")
 	flag.StringVar(&cfg.AccessKey, "key", "", "Access key for tunnel authentication")
 	flag.IntVar(&cfg.LocalPort, "port", 0, "Local port to map through the tunnel")

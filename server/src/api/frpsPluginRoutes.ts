@@ -250,8 +250,8 @@ function handleCloseProxy(content: Record<string, unknown>): object {
       // Add to reject set so any reconnection attempts are immediately rejected
       addToRejectSet(accessKey);
 
-      logAuditEvent('proxy_closed', disconnected.id, `proxy=${proxyName}`);
-      log.info({ keyId: disconnected.id, proxyName }, 'CloseProxy: tunnel disconnected and key destroyed');
+      logAuditEvent('proxy_closed', disconnected.id, `tunnelId=${disconnected.tunnelId}, proxy=${proxyName}`);
+      log.info({ keyId: disconnected.id, tunnelId: disconnected.tunnelId, proxyName }, 'CloseProxy: tunnel disconnected and key destroyed');
 
       // Notify the originating group that the tunnel has disconnected
       if (disconnected.groupId) {
@@ -260,6 +260,7 @@ function handleCloseProxy(content: Record<string, unknown>): object {
           Number(disconnected.userId),
           disconnected.userName,
           getGameDisplayName(disconnected.gameType),
+          disconnected.tunnelId,
         ).catch((err) => {
           log.error({ err, groupId: disconnected.groupId }, 'Failed to send tunnel disconnect notification');
         });
