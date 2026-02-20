@@ -130,6 +130,8 @@ export const config = {
     token: raw.bot?.token as string ?? '',
     selfId: raw.bot?.selfId as number ?? 0,
     broadcastGroups: (raw.bot?.broadcastGroups ?? []) as number[],
+    adminUsers: (raw.bot?.adminUsers ?? []) as number[],
+    allowedGroups: (raw.bot?.allowedGroups ?? []) as number[],
   },
 
   /** Derived paths */
@@ -138,7 +140,42 @@ export const config = {
     data: path.resolve(ROOT, 'data'),
     bin: path.resolve(ROOT, 'bin'),
   },
-} as const;
+};
+
+/**
+ * Save the current config back to config.json.
+ * Used for persisting runtime changes (e.g. allowedGroups modifications).
+ */
+export function saveConfig(): void {
+  const toSave: any = {
+    serverPort: config.serverPort,
+    frpVersion: config.frpVersion,
+    server: { ...config.server },
+    frps: { ...config.frps },
+    portRangeStart: config.portRangeStart,
+    portRangeEnd: config.portRangeEnd,
+    keyTtlMinutes: config.keyTtlMinutes,
+    keyPrefix: config.keyPrefix,
+    bot: {
+      wsUrl: config.bot.wsUrl,
+      token: config.bot.token,
+      selfId: config.bot.selfId,
+      broadcastGroups: config.bot.broadcastGroups,
+      adminUsers: config.bot.adminUsers,
+      allowedGroups: config.bot.allowedGroups,
+    },
+  };
+
+  // Preserve deprecated keys if they exist in current file
+  try {
+    const current = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+    if (current.deprecated) {
+      toSave.deprecated = current.deprecated;
+    }
+  } catch { /* ignore */ }
+
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(toSave, null, 2) + '\n');
+}
 
 // ─── Security warnings for default/insecure configuration ────────────────
 const INSECURE_DEFAULTS = [

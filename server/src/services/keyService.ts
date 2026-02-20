@@ -171,6 +171,15 @@ export function revoke(keyId: number): AccessKey | null {
 }
 
 /**
+ * Get all active/pending keys (admin view).
+ */
+export function getAllActive(): AccessKey[] {
+  return accessKeyStore.filter(
+    (k) => k.status === 'active' || k.status === 'pending',
+  );
+}
+
+/**
  * Get all active keys for a user.
  */
 export function getActiveByUser(userId: string): AccessKey[] {

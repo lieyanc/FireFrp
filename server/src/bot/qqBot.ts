@@ -5,6 +5,14 @@ import { parseCommand, extractTextAfterAt, type MessageSegment } from './message
 import { handleHelp } from './commands/help';
 import { handleOpenServer } from './commands/openServer';
 import { handleStatus } from './commands/status';
+import {
+  handleTunnels,
+  handleKick,
+  handleAddGroup,
+  handleRmGroup,
+  handleGroups,
+  handleServerStatus,
+} from './commands/admin';
 
 const log = logger.child({ module: 'qqBot' });
 
@@ -21,17 +29,50 @@ interface PendingCall {
   timer: NodeJS.Timeout;
 }
 
+const ADMIN_COMMANDS = new Set(['tunnels', 'kick', 'addgroup', 'rmgroup', 'groups', 'server']);
+
 /**
  * Process an incoming bot message and return a response string.
  * This is the core dispatch logic, independent of the transport layer.
  */
-export function processMessage(msg: BotMessage): string | null {
+export function processMessage(msg: BotMessage): string | Promise<string> | null {
   const parsed = parseCommand(msg.content);
 
   if (!parsed) {
     return null; // Not a recognized command
   }
 
+  // Group whitelist check (empty = allow all)
+  const allowed = config.bot.allowedGroups;
+  if (allowed.length > 0 && !allowed.includes(Number(msg.groupId))) {
+    return null; // Silently ignore non-whitelisted groups
+  }
+
+  // Admin command permission check
+  if (ADMIN_COMMANDS.has(parsed.command)) {
+    if (!config.bot.adminUsers.includes(Number(msg.userId))) {
+      return '权限不足，此命令仅限管理员使用。';
+    }
+
+    switch (parsed.command) {
+      case 'tunnels':
+        return handleTunnels();
+      case 'kick':
+        return handleKick(parsed.args);
+      case 'addgroup':
+        return handleAddGroup(parsed.args);
+      case 'rmgroup':
+        return handleRmGroup(parsed.args);
+      case 'groups':
+        return handleGroups();
+      case 'server':
+        return handleServerStatus();
+      default:
+        return null;
+    }
+  }
+
+  // Regular commands
   switch (parsed.command) {
     case 'help':
       return handleHelp();
@@ -210,10 +251,22 @@ class QQBot {
       'Processing bot command',
     );
 
-    const reply = processMessage(msg);
-    if (reply) {
+    const result = processMessage(msg);
+    if (result === null) return;
+
+    // Handle both sync and async responses
+    const sendReply = (reply: string) => {
       this.sendGroupMessage(groupId, userId, reply).catch((err) => {
         log.error({ err, groupId }, 'Failed to send group message');
+      });
+    };
+
+    if (typeof result === 'string') {
+      sendReply(result);
+    } else {
+      result.then(sendReply).catch((err) => {
+        log.error({ err, groupId }, 'Failed to process async command');
+        sendReply('命令执行失败，请稍后重试。');
       });
     }
   }

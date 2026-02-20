@@ -24,6 +24,8 @@
     "wsUrl": "ws://127.0.0.1:3001",
     "token": "",
     "selfId": 0,
-    "broadcastGroups": []
+    "broadcastGroups": [],
+    "adminUsers": [],
+    "allowedGroups": []
   }
 }

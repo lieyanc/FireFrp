@@ -25,6 +25,19 @@ const COMMAND_ALIASES: Record<string, string> = {
   'status': 'status',
   '帮助': 'help',
   'help': 'help',
+  // Admin commands
+  '隧道列表': 'tunnels',
+  'tunnels': 'tunnels',
+  '踢掉': 'kick',
+  'kick': 'kick',
+  '加群': 'addgroup',
+  'addgroup': 'addgroup',
+  '移群': 'rmgroup',
+  'rmgroup': 'rmgroup',
+  '群列表': 'groups',
+  'groups': 'groups',
+  '服务器': 'server',
+  'server': 'server',
 };
 
 /**
