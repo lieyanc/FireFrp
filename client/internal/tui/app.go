@@ -77,6 +77,9 @@ type AppModel struct {
 	submittedKey  string
 	submittedPort int
 
+	// Server display name (from discovery or URL fallback).
+	serverName string
+
 	// ExpiresAt from the API validation response, stored so the running view
 	// can display it once the tunnel is established.
 	expiresAt time.Time
@@ -99,6 +102,7 @@ func newAppModel(cfg *config.Config) AppModel {
 		// Skip server selection, use the configured server URL directly
 		m.state = stateInput
 		m.apiClient = api.NewAPIClient(cfg.ServerURL)
+		m.serverName = cfg.ServerURL
 	}
 
 	return m
@@ -137,6 +141,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// -- Server selected from the selection view ---------------------------
 	case views.ServerSelectedMsg:
 		m.apiClient = api.NewAPIClient(msg.APIUrl)
+		m.serverName = msg.ServerName
 		m.state = stateInput
 		return m, m.inputView.Init()
 
@@ -146,7 +151,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.submittedPort = msg.Port
 
 		// Transition to Connecting (validation phase).
-		m.connectView = views.NewConnectingModel(msg.Key, msg.Port)
+		m.connectView = views.NewConnectingModel(msg.Key, msg.Port, m.serverName)
 		m.state = stateConnecting
 
 		return m, tea.Batch(
@@ -331,7 +336,7 @@ func (m AppModel) handleTunnelStatus(u tunnel.StatusUpdate) (tea.Model, tea.Cmd)
 		// Build the running view with connection details.
 		remoteAddr := fmt.Sprintf("%s:%d", m.tunnelCfg.ServerAddr, m.tunnelCfg.RemotePort)
 		localAddr := fmt.Sprintf("%s:%d", m.tunnelCfg.LocalIP, m.tunnelCfg.LocalPort)
-		m.runningView = views.NewRunningModel(remoteAddr, localAddr, m.expiresAt)
+		m.runningView = views.NewRunningModel(m.serverName, remoteAddr, localAddr, m.expiresAt)
 		// Flush any log entries buffered during the connecting phase.
 		for _, entry := range m.pendingLogs {
 			m.runningView.AddLog(entry.Time, entry.Level, entry.Message)

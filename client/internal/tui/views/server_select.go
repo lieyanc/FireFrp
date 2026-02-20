@@ -16,7 +16,8 @@ import (
 
 // ServerSelectedMsg is emitted when the user selects a server.
 type ServerSelectedMsg struct {
-	APIUrl string
+	APIUrl     string
+	ServerName string // Display name (from discovery or manual URL).
 }
 
 // serverEntry holds a discovered server with its status.
@@ -153,8 +154,10 @@ func (m ServerSelectModel) handleListNavigation(msg tea.KeyMsg) (ServerSelectMod
 				// Can't select an offline server
 				return m, nil
 			}
+			name := entry.info.Name
+			apiUrl := entry.apiUrl
 			return m, func() tea.Msg {
-				return ServerSelectedMsg{APIUrl: entry.apiUrl}
+				return ServerSelectedMsg{APIUrl: apiUrl, ServerName: name}
 			}
 		}
 		// Manual input option selected
@@ -178,7 +181,7 @@ func (m ServerSelectModel) handleManualInput(msg tea.KeyMsg) (ServerSelectModel,
 			addr = "http://" + addr
 		}
 		return m, func() tea.Msg {
-			return ServerSelectedMsg{APIUrl: addr}
+			return ServerSelectedMsg{APIUrl: addr, ServerName: addr}
 		}
 	}
 

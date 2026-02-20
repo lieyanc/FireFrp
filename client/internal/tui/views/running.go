@@ -32,6 +32,7 @@ type logEntry struct {
 
 // RunningModel is the Bubble Tea model for the "tunnel running" view.
 type RunningModel struct {
+	serverName string
 	remoteAddr string
 	localAddr  string
 	expiresAt  time.Time
@@ -45,8 +46,9 @@ type RunningModel struct {
 }
 
 // NewRunningModel creates a RunningModel with the supplied connection info.
-func NewRunningModel(remoteAddr, localAddr string, expiresAt time.Time) RunningModel {
+func NewRunningModel(serverName, remoteAddr, localAddr string, expiresAt time.Time) RunningModel {
 	return RunningModel{
+		serverName: serverName,
 		remoteAddr: remoteAddr,
 		localAddr:  localAddr,
 		expiresAt:  expiresAt,
@@ -140,6 +142,7 @@ func (m RunningModel) View() string {
 	// Connection info box.
 	infoTitle := theme.BoxTitleStyle.Render("连接信息")
 	info := strings.Join([]string{
+		theme.LabelStyle.Render("服务器:") + "  " + theme.ValueStyle.Render(m.serverName),
 		theme.LabelStyle.Render("远程地址:") + " " + theme.ValueStyle.Render(m.remoteAddr),
 		theme.LabelStyle.Render("本地映射:") + " " + theme.ValueStyle.Render(m.localAddr),
 		theme.LabelStyle.Render("到期时间:") + " " + theme.ValueStyle.Render(m.expiresAt.Format("2006-01-02 15:04")),

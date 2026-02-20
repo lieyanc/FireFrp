@@ -28,21 +28,23 @@ type ConnectingModel struct {
 	key        string // Access key (will be partially masked).
 	localPort  int
 	remotePort int
+	serverName string
 	width      int
 	height     int
 }
 
 // NewConnectingModel creates a ConnectingModel for the given key and ports.
-func NewConnectingModel(key string, localPort int) ConnectingModel {
+func NewConnectingModel(key string, localPort int, serverName string) ConnectingModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = theme.SpinnerStyle
 
 	return ConnectingModel{
-		spinner:   s,
-		phase:     PhaseValidating,
-		key:       key,
-		localPort: localPort,
+		spinner:    s,
+		phase:      PhaseValidating,
+		key:        key,
+		localPort:  localPort,
+		serverName: serverName,
 	}
 }
 
@@ -106,6 +108,8 @@ func (m ConnectingModel) View() string {
 	b.WriteString("\n\n")
 
 	// Connection details.
+	b.WriteString("  " + theme.LabelStyle.Render("服务器:") + " " + theme.ValueStyle.Render(m.serverName))
+	b.WriteString("\n")
 	b.WriteString("  " + theme.LabelStyle.Render("Key:") + " " + theme.ValueStyle.Render(MaskKey(m.key)))
 	b.WriteString("\n")
 	if m.remotePort > 0 {
