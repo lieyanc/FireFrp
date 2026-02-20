@@ -14,6 +14,7 @@ import {
   handleServerStatus,
 } from './commands/admin';
 import { handleUpdate } from './commands/update';
+import { handleChannel } from './commands/channel';
 
 const log = logger.child({ module: 'qqBot' });
 
@@ -30,7 +31,7 @@ interface PendingCall {
   timer: NodeJS.Timeout;
 }
 
-const ADMIN_COMMANDS = new Set(['tunnels', 'kick', 'addgroup', 'rmgroup', 'groups', 'server', 'update']);
+const ADMIN_COMMANDS = new Set(['tunnels', 'kick', 'addgroup', 'rmgroup', 'groups', 'server', 'update', 'channel']);
 
 /**
  * Return a list of available commands based on whether the user is an admin.
@@ -51,6 +52,7 @@ function getAvailableCommands(isAdmin: boolean): string {
     lines.push('  群列表  查看白名单');
     lines.push('  加群/移群 <群号>');
     lines.push('  更新  检查并更新服务端');
+    lines.push('  通道 [auto|dev|stable]  更新通道');
   }
 
   return lines.join('\n');
@@ -94,6 +96,8 @@ export function processMessage(msg: BotMessage): string | Promise<string> | null
         return handleServerStatus();
       case 'update':
         return handleUpdate();
+      case 'channel':
+        return handleChannel(parsed.args);
       default:
         return null;
     }

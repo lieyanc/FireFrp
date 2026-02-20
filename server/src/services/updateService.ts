@@ -27,20 +27,25 @@ export interface UpdateCheckResult {
 }
 
 /**
- * Check if the version string is a dev build (e.g. "dev-42-20260220-abc1234").
+ * Determine whether to look for dev (pre-release) builds.
+ * Uses config.updates.channel when explicitly set, otherwise
+ * falls back to version-string-based detection.
  */
-function isDevVersion(version: string): boolean {
-  return version.startsWith('dev-');
+function shouldCheckDev(): boolean {
+  const channel = config.updates.channel;
+  if (channel === 'dev') return true;
+  if (channel === 'stable') return false;
+  // "auto": detect from current version string
+  return getVersion().startsWith('dev-');
 }
 
 /**
  * Check GitHub Releases for a newer version.
- * - Dev builds check for the latest pre-release.
- * - Release builds check for the latest non-pre-release.
+ * Uses config.updates.channel to determine which releases to check.
  */
 export async function checkForUpdate(): Promise<UpdateCheckResult> {
   const currentVersion = getVersion();
-  const isDev = isDevVersion(currentVersion);
+  const isDev = shouldCheckDev();
 
   const result: UpdateCheckResult = {
     available: false,

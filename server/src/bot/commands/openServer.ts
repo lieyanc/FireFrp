@@ -53,7 +53,6 @@ const groupRateLimit = new Map<string, { count: number; resetAt: number }>();
 
 const MAX_ACTIVE_KEYS_PER_USER = 3;
 const MAX_GROUP_REQUESTS_PER_HOUR = 10;
-const MAX_TTL_MINUTES = 480;
 const MIN_TTL_MINUTES = 5;
 
 /**
@@ -81,12 +80,13 @@ export function handleOpenServer(
     return `不支持的游戏类型: "${rawGameType}"\n支持的类型: ${validTypes}`;
   }
 
-  // Parse TTL
-  let ttlMinutes = config.keyTtlMinutes;
+  // Parse TTL (user can set up to the configured max)
+  const maxTtl = config.keyTtlMinutes;
+  let ttlMinutes = maxTtl;
   if (args[1]) {
     const parsed = parseInt(args[1], 10);
-    if (Number.isNaN(parsed) || parsed < MIN_TTL_MINUTES || parsed > MAX_TTL_MINUTES) {
-      return `时长参数无效，请输入 ${MIN_TTL_MINUTES}-${MAX_TTL_MINUTES} 之间的分钟数`;
+    if (Number.isNaN(parsed) || parsed < MIN_TTL_MINUTES || parsed > maxTtl) {
+      return `时长参数无效，请输入 ${MIN_TTL_MINUTES}-${maxTtl} 之间的分钟数`;
     }
     ttlMinutes = parsed;
   }
@@ -119,7 +119,7 @@ export function handleOpenServer(
     );
 
     return [
-      `开服成功! 游戏: ${getGameDisplayName(gameType)}`,
+      `隧道创建成功! 游戏: ${getGameDisplayName(gameType)}`,
       ``,
       `隧道编号: ${accessKey.tunnelId}`,
       `Access Key: ${accessKey.key}`,

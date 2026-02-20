@@ -141,11 +141,22 @@ func (m RunningModel) View() string {
 
 	// Connection info box.
 	infoTitle := theme.BoxTitleStyle.Render("连接信息")
+
+	// Calculate remaining time until expiry.
+	remaining := time.Until(m.expiresAt)
+	var remainingText string
+	if remaining <= 0 {
+		remainingText = theme.ErrorStyle.Render("已过期")
+	} else {
+		remainingText = formatDuration(remaining)
+	}
+
 	info := strings.Join([]string{
 		theme.LabelStyle.Render("服务器:") + "  " + theme.ValueStyle.Render(m.serverName),
 		theme.LabelStyle.Render("远程地址:") + " " + theme.ValueStyle.Render(m.remoteAddr),
 		theme.LabelStyle.Render("本地映射:") + " " + theme.ValueStyle.Render(m.localAddr),
-		theme.LabelStyle.Render("到期时间:") + " " + theme.ValueStyle.Render(m.expiresAt.Format("2006-01-02 15:04")),
+		theme.LabelStyle.Render("到期时间:") + " " + theme.ValueStyle.Render(m.expiresAt.Format("2006-01-02 15:04:05")),
+		theme.LabelStyle.Render("剩余时间:") + " " + theme.ValueStyle.Render(remainingText),
 		theme.LabelStyle.Render("运行时长:") + " " + theme.ValueStyle.Render(formatDuration(time.Since(m.startedAt))),
 	}, "\n")
 	boxContent := infoTitle + "\n" + info

@@ -19,6 +19,7 @@ type ServerSelectedMsg struct {
 	APIUrl        string
 	ServerName    string // Display name (from discovery or manual URL).
 	ClientVersion string // Expected client version reported by this server.
+	UpdateChannel string // Update channel (auto/dev/stable) reported by this server.
 }
 
 // serverEntry holds a discovered server with its status.
@@ -158,8 +159,9 @@ func (m ServerSelectModel) handleListNavigation(msg tea.KeyMsg) (ServerSelectMod
 			name := entry.info.Name
 			apiUrl := entry.apiUrl
 			clientVersion := entry.info.ClientVersion
+			updateChannel := entry.info.UpdateChannel
 			return m, func() tea.Msg {
-				return ServerSelectedMsg{APIUrl: apiUrl, ServerName: name, ClientVersion: clientVersion}
+				return ServerSelectedMsg{APIUrl: apiUrl, ServerName: name, ClientVersion: clientVersion, UpdateChannel: updateChannel}
 			}
 		}
 		// Manual input option selected

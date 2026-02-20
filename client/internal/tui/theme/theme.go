@@ -1,6 +1,10 @@
 package theme
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 // FireFrp brand color palette (flame theme).
 var (
@@ -150,13 +154,26 @@ func SetVersion(v string) {
 	clientVersion = v
 }
 
+// formatVersion returns the version string for display.
+// Release versions (e.g. "1.0.0") get a "v" prefix.
+// Dev versions (e.g. "dev-6-20260220-abc") are returned as-is.
+func formatVersion(v string) string {
+	if v == "" {
+		return ""
+	}
+	if len(v) > 0 && v[0] >= '0' && v[0] <= '9' {
+		return "v" + v
+	}
+	return v
+}
+
 // BrandText returns the styled FireFrp header block (title + version + subtitle).
 func BrandText() string {
-	titleStr := "FireFrp Client"
+	parts := []string{"FireFrp Client"}
 	if clientVersion != "" {
-		titleStr += " v" + clientVersion
+		parts = append(parts, formatVersion(clientVersion))
 	}
-	title := TitleStyle.Render(titleStr)
+	title := TitleStyle.Render(strings.Join(parts, " "))
 	subtitle := SubtitleStyle.Render("临时隧道，一键开服")
 	return lipgloss.JoinVertical(lipgloss.Center, title, subtitle)
 }

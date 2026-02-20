@@ -23,6 +23,7 @@ type ServerInfo struct {
 	PublicAddr    string `json:"public_addr"`
 	Description   string `json:"description"`
 	ClientVersion string `json:"client_version"`
+	UpdateChannel string `json:"update_channel"`
 	APIUrl        string `json:"-"` // set locally, not from JSON
 }
 

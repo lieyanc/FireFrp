@@ -59,7 +59,7 @@ func checkDirectModeUpdate(serverURL string) {
 		return // Can't check, skip silently.
 	}
 
-	updateInfo, err := updater.CheckUpdate(info.ClientVersion, version)
+	updateInfo, err := updater.CheckUpdate(info.ClientVersion, version, info.UpdateChannel)
 	if err != nil || updateInfo == nil || !updateInfo.Available {
 		return
 	}

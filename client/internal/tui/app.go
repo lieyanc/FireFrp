@@ -102,6 +102,9 @@ type AppModel struct {
 	// Update info for non-forced dev update notification.
 	pendingUpdate *updater.UpdateInfo
 
+	// Update channel from the server (auto/dev/stable).
+	updateChannel string
+
 	// ExpiresAt from the API validation response, stored so the running view
 	// can display it once the tunnel is established.
 	expiresAt time.Time
@@ -178,11 +181,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case views.ServerSelectedMsg:
 		m.apiClient = api.NewAPIClient(msg.APIUrl)
 		m.serverName = msg.ServerName
+		m.updateChannel = msg.UpdateChannel
 
 		// Check for updates using the server-reported client version.
 		if msg.ClientVersion != "" && msg.ClientVersion != "unknown" {
 			m.state = stateCheckUpdate
-			return m, m.checkUpdate(msg.ClientVersion)
+			return m, m.checkUpdate(msg.ClientVersion, msg.UpdateChannel)
 		}
 
 		// No version info available, skip update check.
@@ -348,9 +352,9 @@ func (m AppModel) View() string {
 // ---------------------------------------------------------------------------
 
 // checkUpdate returns a tea.Cmd that checks for updates using a known server version.
-func (m *AppModel) checkUpdate(serverVersion string) tea.Cmd {
+func (m *AppModel) checkUpdate(serverVersion, channel string) tea.Cmd {
 	return func() tea.Msg {
-		info, err := updater.CheckUpdate(serverVersion, clientVersion)
+		info, err := updater.CheckUpdate(serverVersion, clientVersion, channel)
 		return updateCheckMsg{info: info, err: err}
 	}
 }
@@ -364,7 +368,7 @@ func (m *AppModel) checkUpdateFromServer(serverURL string) tea.Cmd {
 			// Can't check update, skip.
 			return updateCheckMsg{info: &updater.UpdateInfo{Available: false}, err: nil}
 		}
-		result, err := updater.CheckUpdate(info.ClientVersion, clientVersion)
+		result, err := updater.CheckUpdate(info.ClientVersion, clientVersion, info.UpdateChannel)
 		return updateCheckMsg{info: result, err: err}
 	}
 }

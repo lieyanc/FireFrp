@@ -401,7 +401,7 @@ NapCat 将 QQ 事件以 JSON 推送到 WS 连接，群消息事件格式:
     "group_id": 987654321,
     "message": [
       { "type": "at", "data": { "qq": "123456789" } },
-      { "type": "text", "data": { "text": " 开服成功!\nAccess Key: ff-a1b2c3d4..." } }
+      { "type": "text", "data": { "text": " 隧道创建成功!\nAccess Key: ff-a1b2c3d4..." } }
     ]
   },
   "echo": "req_001"

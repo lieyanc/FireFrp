@@ -20,6 +20,9 @@
   "portRangeEnd": 60000,
   "keyTtlMinutes": 60,
   "keyPrefix": "ff-",
+  "updates": {
+    "channel": "auto"
+  },
   "bot": {
     "wsUrl": "ws://127.0.0.1:3001",
     "token": "",

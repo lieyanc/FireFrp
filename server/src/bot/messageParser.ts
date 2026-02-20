@@ -40,6 +40,8 @@ const COMMAND_ALIASES: Record<string, string> = {
   'server': 'server',
   '更新': 'update',
   'update': 'update',
+  '通道': 'channel',
+  'channel': 'channel',
 };
 
 /**

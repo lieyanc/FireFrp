@@ -26,3 +26,16 @@ export function getVersion(): string {
 
   return cachedVersion!;
 }
+
+/**
+ * Get the version string formatted for display.
+ * Release versions (e.g. "1.0.0") get a "v" prefix → "v1.0.0".
+ * Dev versions (e.g. "dev-6-20260220-abc") are returned as-is.
+ */
+export function getDisplayVersion(): string {
+  const v = getVersion();
+  if (/^\d/.test(v)) {
+    return `v${v}`;
+  }
+  return v;
+}

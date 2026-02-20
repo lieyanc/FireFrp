@@ -3,17 +3,19 @@
  * Returns the help text for the bot.
  */
 
-import { getVersion } from '../../version';
+import { getDisplayVersion } from '../../version';
+import { config } from '../../config';
 
 export function handleHelp(): string {
+  const maxTtl = config.keyTtlMinutes;
   return [
-    `--- FireFrp 帮助 (v${getVersion()}) ---`,
+    `--- FireFrp 帮助 (${getDisplayVersion()}) ---`,
     '',
     '命令列表:',
     '  开服 [游戏类型] [时长(分钟)]',
     '    创建一个临时隧道，获取 access key',
     '    游戏类型: minecraft / mc / terraria 等',
-    '    时长默认 60 分钟，最大 480 分钟',
+    `    时长默认 ${maxTtl} 分钟，最大 ${maxTtl} 分钟`,
     '    示例: @Bot 开服 mc',
     '    示例: @Bot 开服 mc 120',
     '',

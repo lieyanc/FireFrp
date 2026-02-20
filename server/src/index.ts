@@ -11,7 +11,7 @@ import { checkForUpdate, performUpdate } from './services/updateService';
 import * as expiryService from './services/expiryService';
 import { stopRateLimitCleanup } from './api/clientRoutes';
 import { qqBot } from './bot/qqBot';
-import { getVersion } from './version';
+import { getDisplayVersion } from './version';
 import * as fs from 'fs';
 
 const log = logger.child({ module: 'main' });
@@ -136,7 +136,7 @@ async function main(): Promise<void> {
     try {
       if (qqBot.isConnected()) {
         const msg =
-          `🔴 FireFrp 节点下线 (v${getVersion()})\n` +
+          `🔴 FireFrp 节点下线 (${getDisplayVersion()})\n` +
           `节点: ${config.server.name} (${config.server.id})`;
         await qqBot.broadcastGroupMessage(msg);
         log.info('Offline broadcast sent');
@@ -207,7 +207,7 @@ async function main(): Promise<void> {
     await new Promise((r) => setTimeout(r, 2000));
     if (qqBot.isConnected()) {
       const msg =
-        `🟢 FireFrp 节点上线 (v${getVersion()})\n` +
+        `🟢 FireFrp 节点上线 (${getDisplayVersion()})\n` +
         `节点: ${config.server.name} (${config.server.id})\n` +
         `地址: ${config.server.publicAddr}\n` +
         `配置: ${config.server.description}`;

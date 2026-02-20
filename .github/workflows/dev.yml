@@ -8,8 +8,11 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  # ── Compute version ──
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,37 +26,63 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VERSION}"
 
+  # ── Go client cross-compilation (parallel matrix) ──
+  build-client:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            output: firefrp-linux-amd64
+          - goos: linux
+            goarch: arm64
+            output: firefrp-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            output: firefrp-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            output: firefrp-darwin-arm64
+          - goos: windows
+            goarch: amd64
+            output: firefrp-windows-amd64.exe
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.24"
+
+      - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+        working-directory: client
+        run: |
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build \
+            -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }}" \
+            -o "${{ matrix.output }}" ./cmd/firefrp/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output }}
+          path: client/${{ matrix.output }}
+
+  # ── Node.js server build (parallel with client) ──
+  build-server:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
 
-      # ── Go client cross-compilation ──
-      - name: Build Go client (all platforms)
-        working-directory: client
-        env:
-          LDFLAGS: -s -w -X main.version=${{ steps.version.outputs.version }}
-        run: |
-          mkdir -p dist
-          targets=(
-            "linux   amd64  firefrp-linux-amd64"
-            "linux   arm64  firefrp-linux-arm64"
-            "darwin  amd64  firefrp-darwin-amd64"
-            "darwin  arm64  firefrp-darwin-arm64"
-            "windows amd64  firefrp-windows-amd64.exe"
-          )
-          for target in "${targets[@]}"; do
-            read -r os arch output <<< "$target"
-            echo "Building ${os}/${arch} -> ${output}"
-            GOOS=$os GOARCH=$arch go build -ldflags "$LDFLAGS" -o "dist/${output}" ./cmd/firefrp/
-          done
-
-      # ── Node.js server build & package ──
       - name: Build server
         working-directory: server
         run: |
@@ -62,40 +91,58 @@ jobs:
           npm ci --production
 
       - name: Write server version file
+        working-directory: server
         run: |
-          echo '{"version":"${{ steps.version.outputs.version }}"}' > server/version.json
+          echo '{"version":"${{ needs.prepare.outputs.version }}"}' > version.json
 
       - name: Package server
         working-directory: server
         run: |
-          mkdir -p ../client/dist
-          tar -czf ../client/dist/firefrp-server.tar.gz \
+          tar -czf firefrp-server.tar.gz \
             dist/ \
             node_modules/ \
             package.json \
             config.example.json \
             version.json
 
-      # ── Checksums ──
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefrp-server.tar.gz
+          path: server/firefrp-server.tar.gz
+
+  # ── Collect artifacts & release ──
+  release:
+    needs: [prepare, build-client, build-server]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
       - name: Generate checksums
-        working-directory: client/dist
+        working-directory: dist
         run: |
           sha256sum * > checksums.txt
           cat checksums.txt
 
-      # ── Release ──
       - name: Delete existing release if present
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete "${{ steps.version.outputs.version }}" --yes --cleanup-tag 2>/dev/null || true
+          gh release delete "${{ needs.prepare.outputs.version }}" --yes --cleanup-tag 2>/dev/null || true
 
       - name: Create pre-release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ steps.version.outputs.version }}" \
-            --title "${{ steps.version.outputs.version }}" \
+          gh release create "${{ needs.prepare.outputs.version }}" \
+            --title "${{ needs.prepare.outputs.version }}" \
             --notes "Automated dev build from commit ${{ github.sha }}" \
             --prerelease \
-            client/dist/*
+            dist/*

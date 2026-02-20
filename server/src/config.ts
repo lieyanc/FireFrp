@@ -125,6 +125,10 @@ export const config = {
   keyTtlMinutes: raw.keyTtlMinutes as number,
   keyPrefix: raw.keyPrefix as string,
 
+  updates: {
+    channel: (raw.updates?.channel as string) ?? 'auto',
+  },
+
   bot: {
     wsUrl: raw.bot?.wsUrl as string ?? '',
     token: raw.bot?.token as string ?? '',
@@ -156,6 +160,9 @@ export function saveConfig(): void {
     portRangeEnd: config.portRangeEnd,
     keyTtlMinutes: config.keyTtlMinutes,
     keyPrefix: config.keyPrefix,
+    updates: {
+      channel: config.updates.channel,
+    },
     bot: {
       wsUrl: config.bot.wsUrl,
       token: config.bot.token,

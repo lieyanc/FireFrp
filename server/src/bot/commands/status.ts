@@ -2,7 +2,7 @@ import * as keyService from '../../services/keyService';
 import { frpManager } from '../../services/frpManager';
 import { logger } from '../../utils/logger';
 import { getGameDisplayName } from './openServer';
-import { getVersion } from '../../version';
+import { getDisplayVersion } from '../../version';
 
 const log = logger.child({ module: 'bot:status' });
 
@@ -19,7 +19,7 @@ export function handleStatus(userId: string): string {
 
   const lines: string[] = [];
 
-  lines.push(`--- FireFrp 状态 (v${getVersion()}) ---`);
+  lines.push(`--- FireFrp 状态 (${getDisplayVersion()}) ---`);
   lines.push('');
 
   // Server status

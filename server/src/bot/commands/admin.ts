@@ -5,7 +5,7 @@ import { addToRejectSet } from '../../services/expiryService';
 import { config, saveConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import { getGameDisplayName } from './openServer';
-import { getVersion } from '../../version';
+import { getDisplayVersion } from '../../version';
 
 const log = logger.child({ module: 'bot:admin' });
 
@@ -21,7 +21,7 @@ export function handleTunnels(): string {
   }
 
   const lines: string[] = [];
-  lines.push(`--- 活跃隧道 (${keys.length} 个) | v${getVersion()} ---`);
+  lines.push(`--- 活跃隧道 (${keys.length} 个) | ${getDisplayVersion()} ---`);
   lines.push('');
 
   for (const key of keys) {
@@ -171,7 +171,7 @@ export async function handleServerStatus(): Promise<string> {
 
   lines.push('--- 服务器状态 ---');
   lines.push('');
-  lines.push(`FireFrp 版本: v${getVersion()}`);
+  lines.push(`FireFrp 版本: ${getDisplayVersion()}`);
   lines.push(`frps 状态: ${managerStatus.state}`);
 
   if (managerStatus.uptime !== null) {

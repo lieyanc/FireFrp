@@ -202,6 +202,7 @@ router.get('/api/v1/server-info', (_req: Request, res: Response) => {
       public_addr: config.server.publicAddr,
       description: config.server.description,
       client_version: getVersion(),
+      update_channel: config.updates.channel,
     },
   });
 });

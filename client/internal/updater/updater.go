@@ -57,15 +57,28 @@ func assetName() string {
 // CheckUpdate compares the server-reported version with the current version
 // and determines if an update is needed.
 //
-// For release versions: force update if mismatch.
-// For dev versions: query GitHub for the latest pre-release, non-forced.
-func CheckUpdate(serverVersion, currentVersion string) (*UpdateInfo, error) {
+// The channel parameter controls behavior:
+//   - "dev": always check for latest pre-release, non-forced update.
+//   - "stable": always check for release version match, forced if mismatch.
+//   - "auto" or "": use version string heuristics (dev- prefix → dev, else release).
+func CheckUpdate(serverVersion, currentVersion, channel string) (*UpdateInfo, error) {
 	if serverVersion == "" || serverVersion == "unknown" {
 		return &UpdateInfo{Available: false}, nil
 	}
 
-	if !IsDevVersion(serverVersion) {
-		// Release version: force sync
+	isDev := false
+	switch channel {
+	case "dev":
+		isDev = true
+	case "stable":
+		isDev = false
+	default:
+		// "auto" or empty: detect from server version string.
+		isDev = IsDevVersion(serverVersion)
+	}
+
+	if !isDev {
+		// Release version: force sync with server version.
 		if serverVersion == currentVersion {
 			return &UpdateInfo{Available: false}, nil
 		}
@@ -77,7 +90,7 @@ func CheckUpdate(serverVersion, currentVersion string) (*UpdateInfo, error) {
 		}, nil
 	}
 
-	// Dev version: check latest pre-release on GitHub
+	// Dev channel: check latest pre-release on GitHub.
 	latest, err := fetchLatestPrerelease()
 	if err != nil {
 		return nil, fmt.Errorf("failed to check latest dev release: %w", err)
