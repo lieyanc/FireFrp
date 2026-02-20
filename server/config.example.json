@@ -1,6 +1,12 @@
 {
   "serverPort": 9000,
   "frpVersion": "0.67.0",
+  "server": {
+    "id": "node-1",
+    "name": "默认节点",
+    "publicAddr": "example.com",
+    "description": "请在 config.json 中配置节点信息"
+  },
   "frps": {
     "bindAddr": "0.0.0.0",
     "bindPort": 7000,
@@ -17,6 +23,7 @@
   "bot": {
     "wsUrl": "ws://127.0.0.1:3001",
     "token": "",
-    "selfId": 0
+    "selfId": 0,
+    "broadcastGroups": []
   }
 }

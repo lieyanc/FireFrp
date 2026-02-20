@@ -276,6 +276,42 @@ class QQBot {
   }
 
   /**
+   * Broadcast a text message to all configured broadcast groups.
+   * Unlike sendGroupMessage, this does not @mention anyone.
+   */
+  async broadcastGroupMessage(text: string): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      log.warn('Cannot broadcast: WebSocket not connected');
+      return;
+    }
+
+    const groups = config.bot.broadcastGroups;
+    if (groups.length === 0) {
+      log.debug('No broadcast groups configured, skipping broadcast');
+      return;
+    }
+
+    for (const groupId of groups) {
+      try {
+        await this.callApi('send_group_msg', {
+          group_id: groupId,
+          message: [{ type: 'text', data: { text } }],
+        });
+        log.debug({ groupId }, 'Broadcast message sent');
+      } catch (err) {
+        log.error({ err, groupId }, 'Failed to broadcast to group');
+      }
+    }
+  }
+
+  /**
+   * Check if the bot WebSocket is connected and ready.
+   */
+  isConnected(): boolean {
+    return this.running && this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  /**
    * Schedule a reconnection attempt with exponential backoff.
    */
   private scheduleReconnect(): void {

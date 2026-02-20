@@ -98,6 +98,19 @@ async function main(): Promise<void> {
 
     log.info({ signal }, 'Graceful shutdown initiated');
 
+    // Broadcast offline notification before stopping services
+    try {
+      if (qqBot.isConnected()) {
+        const msg =
+          `🔴 FireFrp 节点下线\n` +
+          `节点: ${config.server.name} (${config.server.id})`;
+        await qqBot.broadcastGroupMessage(msg);
+        log.info('Offline broadcast sent');
+      }
+    } catch (err) {
+      log.error({ err }, 'Failed to send offline broadcast');
+    }
+
     // Stop QQ Bot
     try {
       await qqBot.stop();
@@ -133,6 +146,23 @@ async function main(): Promise<void> {
   });
 
   log.info('FireFrp Server is fully operational');
+
+  // ── Step 9: Broadcast online notification ──
+  try {
+    // Give the bot a moment to establish the WebSocket connection
+    await new Promise((r) => setTimeout(r, 2000));
+    if (qqBot.isConnected()) {
+      const msg =
+        `🟢 FireFrp 节点上线\n` +
+        `节点: ${config.server.name} (${config.server.id})\n` +
+        `地址: ${config.server.publicAddr}\n` +
+        `配置: ${config.server.description}`;
+      await qqBot.broadcastGroupMessage(msg);
+      log.info('Online broadcast sent');
+    }
+  } catch (err) {
+    log.error({ err }, 'Failed to send online broadcast');
+  }
 }
 
 main().catch((err) => {

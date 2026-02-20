@@ -176,4 +176,20 @@ router.post('/api/v1/validate', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/v1/server-info
+ * Returns this server's self-configuration for client-side server discovery.
+ */
+router.get('/api/v1/server-info', (_req: Request, res: Response) => {
+  res.json({
+    ok: true,
+    data: {
+      id: config.server.id,
+      name: config.server.name,
+      public_addr: config.server.publicAddr,
+      description: config.server.description,
+    },
+  });
+});
+
 export { router as clientRoutes };

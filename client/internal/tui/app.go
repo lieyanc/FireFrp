@@ -17,10 +17,11 @@ import (
 type appState int
 
 const (
-	stateInput      appState = iota // Waiting for user input.
-	stateConnecting                 // Validating key / establishing tunnel.
-	stateRunning                    // Tunnel is active.
-	stateError                      // An error occurred; user can retry.
+	stateServerSelect appState = iota // Selecting a server from the list.
+	stateInput                        // Waiting for user input.
+	stateConnecting                   // Validating key / establishing tunnel.
+	stateRunning                      // Tunnel is active.
+	stateError                        // An error occurred; user can retry.
 )
 
 // ---------------------------------------------------------------------------
@@ -48,12 +49,13 @@ type errorMsg struct {
 // ---------------------------------------------------------------------------
 
 // AppModel is the top-level Bubble Tea model that orchestrates the state
-// machine: Input -> Connecting -> Running -> (Error -> Input).
+// machine: ServerSelect -> Input -> Connecting -> Running -> (Error -> Input).
 type AppModel struct {
-	state       appState
-	inputView   views.InputModel
-	connectView views.ConnectingModel
-	runningView views.RunningModel
+	state            appState
+	serverSelectView views.ServerSelectModel
+	inputView        views.InputModel
+	connectView      views.ConnectingModel
+	runningView      views.RunningModel
 
 	// Dependencies injected via Run().
 	config    *config.Config
@@ -77,16 +79,29 @@ type AppModel struct {
 
 // newAppModel initialises the application model with the given config.
 func newAppModel(cfg *config.Config) AppModel {
-	return AppModel{
-		state:     stateInput,
+	m := AppModel{
 		inputView: views.NewInputModel(),
 		config:    cfg,
-		apiClient: api.NewAPIClient(cfg.ServerURL),
 	}
+
+	if cfg.NeedsServerSelect() {
+		// Start with server selection
+		m.state = stateServerSelect
+		m.serverSelectView = views.NewServerSelectModel(cfg.ServerListURL)
+	} else {
+		// Skip server selection, use the configured server URL directly
+		m.state = stateInput
+		m.apiClient = api.NewAPIClient(cfg.ServerURL)
+	}
+
+	return m
 }
 
 // Init returns the initial command (delegate to the active sub-view).
 func (m AppModel) Init() tea.Cmd {
+	if m.state == stateServerSelect {
+		return m.serverSelectView.Init()
+	}
 	return m.inputView.Init()
 }
 
@@ -106,10 +121,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// -- Window resize -----------------------------------------------------
 	case tea.WindowSizeMsg:
 		// Forward to all sub-views so they can adapt.
+		m.serverSelectView, _ = m.serverSelectView.Update(msg)
 		m.inputView, _ = m.inputView.Update(msg)
 		m.connectView, _ = m.connectView.Update(msg)
 		m.runningView, _ = m.runningView.Update(msg)
 		return m, nil
+
+	// -- Server selected from the selection view ---------------------------
+	case views.ServerSelectedMsg:
+		m.apiClient = api.NewAPIClient(msg.APIUrl)
+		m.state = stateInput
+		return m, m.inputView.Init()
 
 	// -- User submits key + port from the input view -----------------------
 	case views.SubmitMsg:
@@ -176,6 +198,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// -- Delegate to the active sub-view -----------------------------------
 	var cmd tea.Cmd
 	switch m.state {
+	case stateServerSelect:
+		m.serverSelectView, cmd = m.serverSelectView.Update(msg)
 	case stateInput:
 		m.inputView, cmd = m.inputView.Update(msg)
 	case stateConnecting:
@@ -189,6 +213,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View implements tea.Model. It renders the active sub-view.
 func (m AppModel) View() string {
 	switch m.state {
+	case stateServerSelect:
+		return m.serverSelectView.View()
 	case stateInput, stateError:
 		return m.inputView.View()
 	case stateConnecting:
