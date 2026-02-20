@@ -11,7 +11,7 @@ import { checkForUpdate, performUpdate } from './services/updateService';
 import * as expiryService from './services/expiryService';
 import { stopRateLimitCleanup } from './api/clientRoutes';
 import { qqBot } from './bot/qqBot';
-import { getDisplayVersion } from './version';
+import { getDisplayVersion, getVersion } from './version';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -139,7 +139,7 @@ async function main(): Promise<void> {
         const msg =
           `🔴 FireFrp 节点下线 (${getDisplayVersion()})\n` +
           `节点: ${config.server.name} (${config.server.id})`;
-        await qqBot.broadcastGroupMessage(msg, config.bot.allowedGroups);
+        await qqBot.broadcastGroupMessage(msg);
         log.info('Offline broadcast sent');
       }
     } catch (err) {
@@ -223,8 +223,13 @@ async function main(): Promise<void> {
   const updateMarkerPath = path.join(config.paths.data, '.just_updated');
   if (fs.existsSync(updateMarkerPath)) {
     try {
-      fs.unlinkSync(updateMarkerPath);
-      if (qqBot.isConnected()) {
+      const markerVersion = fs.readFileSync(updateMarkerPath, 'utf-8').trim();
+
+      if (markerVersion !== getVersion()) {
+        // Stale marker from a previous failed update cycle, clean up
+        fs.unlinkSync(updateMarkerPath);
+        log.warn({ markerVersion, currentVersion: getVersion() }, 'Removed stale update marker');
+      } else if (qqBot.isConnected()) {
         const ver = getDisplayVersion();
         const downloadUrl = `https://dl.repo.chycloud.top/lieyanc/FireFrp/${ver}`;
         const updateMsg =
@@ -232,6 +237,10 @@ async function main(): Promise<void> {
           `客户端下载: ${downloadUrl}`;
         await qqBot.broadcastGroupMessage(updateMsg, config.bot.allowedGroups);
         log.info({ version: ver, downloadUrl }, 'Update download broadcast sent');
+        // Only delete marker after successful broadcast
+        fs.unlinkSync(updateMarkerPath);
+      } else {
+        log.warn('Bot not connected, deferring update broadcast to next restart');
       }
     } catch (err) {
       log.error({ err }, 'Failed to send update broadcast');
