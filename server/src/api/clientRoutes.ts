@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { config } from '../config';
 import * as keyService from '../services/keyService';
+import { getVersion } from '../version';
 import { logger } from '../utils/logger';
 
 const log = logger.child({ module: 'clientRoutes' });
@@ -188,6 +189,7 @@ router.get('/api/v1/server-info', (_req: Request, res: Response) => {
       name: config.server.name,
       public_addr: config.server.publicAddr,
       description: config.server.description,
+      client_version: getVersion(),
     },
   });
 });

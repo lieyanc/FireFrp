@@ -12,7 +12,7 @@ export interface ParsedCommand {
 /** OneBot 11 message segment. */
 export interface MessageSegment {
   type: string;
-  data: Record<string, string>;
+  data: Record<string, any>;
 }
 
 /**
@@ -38,6 +38,8 @@ const COMMAND_ALIASES: Record<string, string> = {
   'groups': 'groups',
   '服务器': 'server',
   'server': 'server',
+  '更新': 'update',
+  'update': 'update',
 };
 
 /**
@@ -48,7 +50,7 @@ const COMMAND_ALIASES: Record<string, string> = {
  *
  * @param segments - OneBot 11 message segment array
  * @param selfId - The bot's own QQ number
- * @returns The extracted text content, or null if the bot is not mentioned
+ * @returns The extracted text content, empty string if mentioned but no text, or null if not mentioned
  */
 export function extractTextAfterAt(segments: MessageSegment[], selfId: number): string | null {
   const selfIdStr = String(selfId);
@@ -58,7 +60,7 @@ export function extractTextAfterAt(segments: MessageSegment[], selfId: number): 
 
   for (const seg of segments) {
     if (!foundAt) {
-      if (seg.type === 'at' && seg.data.qq === selfIdStr) {
+      if (seg.type === 'at' && String(seg.data.qq) === selfIdStr) {
         foundAt = true;
       }
       continue;
@@ -71,8 +73,7 @@ export function extractTextAfterAt(segments: MessageSegment[], selfId: number): 
 
   if (!foundAt) return null;
 
-  const text = textParts.join('').trim();
-  return text || null;
+  return textParts.join('').trim();
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   handleGroups,
   handleServerStatus,
 } from './commands/admin';
+import { handleUpdate } from './commands/update';
 
 const log = logger.child({ module: 'qqBot' });
 
@@ -29,7 +30,31 @@ interface PendingCall {
   timer: NodeJS.Timeout;
 }
 
-const ADMIN_COMMANDS = new Set(['tunnels', 'kick', 'addgroup', 'rmgroup', 'groups', 'server']);
+const ADMIN_COMMANDS = new Set(['tunnels', 'kick', 'addgroup', 'rmgroup', 'groups', 'server', 'update']);
+
+/**
+ * Return a list of available commands based on whether the user is an admin.
+ */
+function getAvailableCommands(isAdmin: boolean): string {
+  const lines: string[] = [];
+  lines.push('可用命令:');
+  lines.push('  开服 [游戏] [时长]  创建隧道');
+  lines.push('  状态  查看我的隧道');
+  lines.push('  帮助  详细帮助');
+
+  if (isAdmin) {
+    lines.push('');
+    lines.push('管理员命令:');
+    lines.push('  隧道列表  查看所有隧道');
+    lines.push('  踢掉 <ID>  撤销隧道');
+    lines.push('  服务器  服务器状态');
+    lines.push('  群列表  查看白名单');
+    lines.push('  加群/移群 <群号>');
+    lines.push('  更新  检查并更新服务端');
+  }
+
+  return lines.join('\n');
+}
 
 /**
  * Process an incoming bot message and return a response string.
@@ -67,6 +92,8 @@ export function processMessage(msg: BotMessage): string | Promise<string> | null
         return handleGroups();
       case 'server':
         return handleServerStatus();
+      case 'update':
+        return handleUpdate();
       default:
         return null;
     }
@@ -233,11 +260,21 @@ class QQBot {
 
     // Extract text after @Bot mention
     const text = extractTextAfterAt(segments, this.selfId);
-    if (!text) return;
+    if (text === null) return; // Not mentioned
 
     const groupId = event.group_id;
     const userId = event.user_id;
     const sender = event.sender || {};
+
+    // Bare @Bot with no command → show available commands based on permissions
+    if (text === '') {
+      const isAdmin = config.bot.adminUsers.includes(Number(userId));
+      const reply = getAvailableCommands(isAdmin);
+      this.sendGroupMessage(groupId, userId, reply).catch((err) => {
+        log.error({ err, groupId }, 'Failed to send group message');
+      });
+      return;
+    }
 
     const msg: BotMessage = {
       userId: String(userId),

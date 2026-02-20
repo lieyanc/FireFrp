@@ -16,6 +16,7 @@ import (
 	"github.com/AerNos/firefrp-client/internal/config"
 	"github.com/AerNos/firefrp-client/internal/tui"
 	"github.com/AerNos/firefrp-client/internal/tunnel"
+	"github.com/AerNos/firefrp-client/internal/updater"
 )
 
 // version is set at build time via -ldflags "-X main.version=..."
@@ -42,10 +43,40 @@ func main() {
 		}
 	} else {
 		// TUI mode: launch interactive terminal UI.
-		if err := tui.Run(cfg); err != nil {
+		if err := tui.Run(cfg, version); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
+	}
+}
+
+// checkDirectModeUpdate checks for updates when running in direct mode.
+// For release version mismatch it forces the update; for dev it prints a hint.
+func checkDirectModeUpdate(serverURL string) {
+	client := api.NewAPIClient(serverURL)
+	info, err := client.FetchServerInfo()
+	if err != nil || info.ClientVersion == "" || info.ClientVersion == "unknown" {
+		return // Can't check, skip silently.
+	}
+
+	updateInfo, err := updater.CheckUpdate(info.ClientVersion, version)
+	if err != nil || updateInfo == nil || !updateInfo.Available {
+		return
+	}
+
+	if updateInfo.Force {
+		fmt.Fprintf(os.Stderr, "版本不匹配 (当前: %s, 要求: %s)，正在更新...\n", version, updateInfo.Version)
+		if err := updater.DoUpdate(updateInfo.TargetTag); err != nil {
+			fmt.Fprintf(os.Stderr, "更新失败: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "更新完成，正在重启...\n")
+		if err := updater.Relaunch(); err != nil {
+			fmt.Fprintf(os.Stderr, "重启失败: %v，请手动重新运行\n", err)
+			os.Exit(1)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "提示: 有新版本可用 (%s)，当前版本: %s\n", updateInfo.Version, version)
 	}
 }
 
@@ -55,6 +86,9 @@ func runDirect(cfg *config.Config) error {
 	fmt.Printf("FireFrp Client - Direct Mode\n")
 	fmt.Printf("Server: %s\n", cfg.ServerURL)
 	fmt.Printf("Local:  %s:%d\n\n", cfg.LocalIP, cfg.LocalPort)
+
+	// Step 0: Check for client updates.
+	checkDirectModeUpdate(cfg.ServerURL)
 
 	// Step 1: Validate the access key with the management server.
 	fmt.Printf("Validating access key...\n")

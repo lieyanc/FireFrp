@@ -6,11 +6,35 @@ import { auditLogStore } from './db/models/auditLog';
 import { apiRouter } from './api/router';
 import { errorHandler } from './middleware/errorHandler';
 import { frpManager } from './services/frpManager';
+import { checkForUpdate, performUpdate } from './services/updateService';
 import * as expiryService from './services/expiryService';
 import { qqBot } from './bot/qqBot';
 import * as fs from 'fs';
 
 const log = logger.child({ module: 'main' });
+
+// ── Handle --update CLI flag ──
+if (process.argv.includes('--update')) {
+  (async () => {
+    log.info('Running in update mode');
+    const info = await checkForUpdate();
+    if (info.available) {
+      log.info({ from: info.currentVersion, to: info.latestVersion }, 'Update available');
+      await performUpdate(info);
+    } else {
+      log.info({ version: info.currentVersion }, 'Already on the latest version');
+      process.exit(0);
+    }
+  })().catch((err) => {
+    log.fatal({ err }, 'Update failed');
+    process.exit(1);
+  });
+} else {
+  main().catch((err) => {
+    log.fatal({ err }, 'Fatal error during startup');
+    process.exit(1);
+  });
+}
 
 async function main(): Promise<void> {
   log.info('FireFrp Server starting...');
@@ -164,8 +188,3 @@ async function main(): Promise<void> {
     log.error({ err }, 'Failed to send online broadcast');
   }
 }
-
-main().catch((err) => {
-  log.fatal({ err }, 'Fatal error during startup');
-  process.exit(1);
-});

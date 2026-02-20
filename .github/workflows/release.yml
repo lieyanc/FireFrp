@@ -70,6 +70,10 @@ jobs:
           npm run build
           npm ci --production
 
+      - name: Write server version file
+        run: |
+          echo '{"version":"${{ steps.version.outputs.version }}"}' > server/version.json
+
       - name: Package server
         working-directory: server
         run: |
@@ -78,7 +82,8 @@ jobs:
             dist/ \
             node_modules/ \
             package.json \
-            config.example.json
+            config.example.json \
+            version.json
 
       # ── Checksums ──
       - name: Generate checksums

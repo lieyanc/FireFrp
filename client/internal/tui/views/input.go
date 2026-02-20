@@ -24,6 +24,7 @@ type InputModel struct {
 	portInput  textinput.Model
 	focusIndex int // 0 = key, 1 = port
 	err        string
+	updateHint string // non-empty when a dev update is available
 	width      int
 	height     int
 }
@@ -170,6 +171,12 @@ func (m InputModel) View() string {
 		b.WriteString(theme.ErrorStyle.Render("  ✗ " + m.err))
 	}
 
+	// Update hint (shown for optional dev updates).
+	if m.updateHint != "" && m.err == "" {
+		b.WriteString("\n\n")
+		b.WriteString(theme.WarningStyle.Render("  ↑ " + m.updateHint))
+	}
+
 	// Help bar.
 	b.WriteString("\n")
 	help := theme.HelpStyle.Render("[Tab] 切换  [Enter] 连接  [Esc] 退出")
@@ -188,6 +195,11 @@ func (m *InputModel) SetError(err string) {
 // ClearError removes any displayed error.
 func (m *InputModel) ClearError() {
 	m.err = ""
+}
+
+// SetUpdateHint sets a notification about an available optional update.
+func (m *InputModel) SetUpdateHint(hint string) {
+	m.updateHint = hint
 }
 
 // maskKey returns a partially masked key for display, e.g. "ff-a1b2***".

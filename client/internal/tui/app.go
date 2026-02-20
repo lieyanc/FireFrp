@@ -11,13 +11,19 @@ import (
 	"github.com/AerNos/firefrp-client/internal/config"
 	"github.com/AerNos/firefrp-client/internal/tui/views"
 	"github.com/AerNos/firefrp-client/internal/tunnel"
+	"github.com/AerNos/firefrp-client/internal/updater"
 )
+
+// version is passed in from main via Run().
+var clientVersion string
 
 // appState enumerates the top-level application states.
 type appState int
 
 const (
 	stateServerSelect appState = iota // Selecting a server from the list.
+	stateCheckUpdate                  // Checking for client update.
+	stateUpdating                     // Downloading and applying update.
 	stateInput                        // Waiting for user input.
 	stateConnecting                   // Validating key / establishing tunnel.
 	stateRunning                      // Tunnel is active.
@@ -49,15 +55,27 @@ type errorMsg struct {
 	err error
 }
 
+// updateCheckMsg carries the result of an update check.
+type updateCheckMsg struct {
+	info *updater.UpdateInfo
+	err  error
+}
+
+// updateApplyMsg is sent when the update binary download completes.
+type updateApplyMsg struct {
+	err error
+}
+
 // ---------------------------------------------------------------------------
 // AppModel
 // ---------------------------------------------------------------------------
 
 // AppModel is the top-level Bubble Tea model that orchestrates the state
-// machine: ServerSelect -> Input -> Connecting -> Running -> (Error -> Input).
+// machine: ServerSelect -> CheckUpdate -> Input -> Connecting -> Running.
 type AppModel struct {
 	state            appState
 	serverSelectView views.ServerSelectModel
+	updatingView     views.UpdatingModel
 	inputView        views.InputModel
 	connectView      views.ConnectingModel
 	runningView      views.RunningModel
@@ -80,6 +98,9 @@ type AppModel struct {
 	// Server display name (from discovery or URL fallback).
 	serverName string
 
+	// Update info for non-forced dev update notification.
+	pendingUpdate *updater.UpdateInfo
+
 	// ExpiresAt from the API validation response, stored so the running view
 	// can display it once the tunnel is established.
 	expiresAt time.Time
@@ -99,8 +120,8 @@ func newAppModel(cfg *config.Config) AppModel {
 		m.state = stateServerSelect
 		m.serverSelectView = views.NewServerSelectModel(cfg.ServerListURL)
 	} else {
-		// Skip server selection, use the configured server URL directly
-		m.state = stateInput
+		// Skip server selection; check for updates directly.
+		m.state = stateCheckUpdate
 		m.apiClient = api.NewAPIClient(cfg.ServerURL)
 		m.serverName = cfg.ServerURL
 	}
@@ -110,10 +131,14 @@ func newAppModel(cfg *config.Config) AppModel {
 
 // Init returns the initial command (delegate to the active sub-view).
 func (m AppModel) Init() tea.Cmd {
-	if m.state == stateServerSelect {
+	switch m.state {
+	case stateServerSelect:
 		return m.serverSelectView.Init()
+	case stateCheckUpdate:
+		return m.checkUpdateFromServer(m.config.ServerURL)
+	default:
+		return m.inputView.Init()
 	}
-	return m.inputView.Init()
 }
 
 // Update implements tea.Model. It routes messages to the appropriate sub-view
@@ -129,6 +154,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
+		// In input state, 'u' key triggers pending dev update.
+		if m.state == stateInput && msg.String() == "u" && m.pendingUpdate != nil {
+			m.updatingView = views.NewUpdatingModel(m.pendingUpdate.Version)
+			m.state = stateUpdating
+			info := m.pendingUpdate
+			m.pendingUpdate = nil
+			return m, tea.Batch(m.updatingView.Init(), m.applyUpdate(info.TargetTag))
+		}
+
 	// -- Window resize -----------------------------------------------------
 	case tea.WindowSizeMsg:
 		// Forward to all sub-views so they can adapt.
@@ -136,14 +170,67 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputView, _ = m.inputView.Update(msg)
 		m.connectView, _ = m.connectView.Update(msg)
 		m.runningView, _ = m.runningView.Update(msg)
+		m.updatingView, _ = m.updatingView.Update(msg)
 		return m, nil
 
 	// -- Server selected from the selection view ---------------------------
 	case views.ServerSelectedMsg:
 		m.apiClient = api.NewAPIClient(msg.APIUrl)
 		m.serverName = msg.ServerName
+
+		// Check for updates using the server-reported client version.
+		if msg.ClientVersion != "" && msg.ClientVersion != "unknown" {
+			m.state = stateCheckUpdate
+			return m, m.checkUpdate(msg.ClientVersion)
+		}
+
+		// No version info available, skip update check.
 		m.state = stateInput
 		return m, m.inputView.Init()
+
+	// -- Update check result -----------------------------------------------
+	case updateCheckMsg:
+		if msg.err != nil {
+			// Update check failed, continue to input.
+			m.state = stateInput
+			return m, m.inputView.Init()
+		}
+
+		if msg.info == nil || !msg.info.Available {
+			// No update needed, proceed to input.
+			m.state = stateInput
+			return m, m.inputView.Init()
+		}
+
+		if msg.info.Force {
+			// Release version mismatch: force update.
+			m.updatingView = views.NewUpdatingModel(msg.info.Version)
+			m.state = stateUpdating
+			return m, tea.Batch(m.updatingView.Init(), m.applyUpdate(msg.info.TargetTag))
+		}
+
+		// Dev version: optional update. Store info and show hint.
+		m.pendingUpdate = msg.info
+		m.inputView.SetUpdateHint(fmt.Sprintf("新版本可用: %s  [按 u 更新]", msg.info.Version))
+		m.state = stateInput
+		return m, m.inputView.Init()
+
+	// -- Update applied ----------------------------------------------------
+	case updateApplyMsg:
+		if msg.err != nil {
+			m.updatingView.Update(views.UpdateErrorMsg{Err: msg.err})
+			// After a failed update, allow continuing to input.
+			m.state = stateInput
+			m.inputView.SetError("更新失败: " + msg.err.Error())
+			return m, m.inputView.Init()
+		}
+		m.updatingView.Update(views.UpdateDoneMsg{})
+		// Relaunch the new binary.
+		return m, func() tea.Msg {
+			_ = updater.Relaunch()
+			// If relaunch fails (shouldn't happen on Unix), just quit.
+			return tea.Quit()
+		}
 
 	// -- User submits key + port from the input view -----------------------
 	case views.SubmitMsg:
@@ -223,6 +310,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case stateServerSelect:
 		m.serverSelectView, cmd = m.serverSelectView.Update(msg)
+	case stateUpdating:
+		m.updatingView, cmd = m.updatingView.Update(msg)
 	case stateInput:
 		m.inputView, cmd = m.inputView.Update(msg)
 	case stateConnecting:
@@ -238,6 +327,10 @@ func (m AppModel) View() string {
 	switch m.state {
 	case stateServerSelect:
 		return m.serverSelectView.View()
+	case stateCheckUpdate:
+		return m.serverSelectView.View() // Show server list while checking
+	case stateUpdating:
+		return m.updatingView.View()
 	case stateInput, stateError:
 		return m.inputView.View()
 	case stateConnecting:
@@ -252,6 +345,36 @@ func (m AppModel) View() string {
 // ---------------------------------------------------------------------------
 // Async commands
 // ---------------------------------------------------------------------------
+
+// checkUpdate returns a tea.Cmd that checks for updates using a known server version.
+func (m *AppModel) checkUpdate(serverVersion string) tea.Cmd {
+	return func() tea.Msg {
+		info, err := updater.CheckUpdate(serverVersion, clientVersion)
+		return updateCheckMsg{info: info, err: err}
+	}
+}
+
+// checkUpdateFromServer fetches server info first, then checks for updates.
+func (m *AppModel) checkUpdateFromServer(serverURL string) tea.Cmd {
+	return func() tea.Msg {
+		client := api.NewAPIClient(serverURL)
+		info, err := client.FetchServerInfo()
+		if err != nil || info.ClientVersion == "" || info.ClientVersion == "unknown" {
+			// Can't check update, skip.
+			return updateCheckMsg{info: &updater.UpdateInfo{Available: false}, err: nil}
+		}
+		result, err := updater.CheckUpdate(info.ClientVersion, clientVersion)
+		return updateCheckMsg{info: result, err: err}
+	}
+}
+
+// applyUpdate returns a tea.Cmd that downloads and applies the update.
+func (m *AppModel) applyUpdate(tag string) tea.Cmd {
+	return func() tea.Msg {
+		err := updater.DoUpdate(tag)
+		return updateApplyMsg{err: err}
+	}
+}
 
 // validateKey returns a tea.Cmd that calls the API to validate the access key.
 func (m *AppModel) validateKey(key string) tea.Cmd {
@@ -421,7 +544,8 @@ func mapErrorCode(code, message string) string {
 // ---------------------------------------------------------------------------
 
 // Run starts the Bubble Tea TUI application. It blocks until the user exits.
-func Run(cfg *config.Config) error {
+func Run(cfg *config.Config, version string) error {
+	clientVersion = version
 	model := newAppModel(cfg)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	_, err := p.Run()

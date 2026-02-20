@@ -18,11 +18,12 @@ type ServerListEntry struct {
 // ServerInfo holds the self-configuration returned by a server's
 // GET /api/v1/server-info endpoint.
 type ServerInfo struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	PublicAddr  string `json:"public_addr"`
-	Description string `json:"description"`
-	APIUrl      string `json:"-"` // set locally, not from JSON
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	PublicAddr    string `json:"public_addr"`
+	Description   string `json:"description"`
+	ClientVersion string `json:"client_version"`
+	APIUrl        string `json:"-"` // set locally, not from JSON
 }
 
 // serverInfoResponse wraps the API response.
