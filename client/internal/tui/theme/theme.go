@@ -122,6 +122,26 @@ var LabelStyle = lipgloss.NewStyle().
 var ValueStyle = lipgloss.NewStyle().
 	Foreground(ColorText)
 
+// LogBoxStyle renders the log panel with a rounded border.
+var LogBoxStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.RoundedBorder()).
+	BorderForeground(ColorBorder).
+	Padding(0, 1).
+	MarginTop(1)
+
+// LogTimeStyle renders the timestamp portion of a log entry.
+var LogTimeStyle = lipgloss.NewStyle().
+	Foreground(ColorTextDim)
+
+// LogLevelWarn renders warning-level log indicators.
+var LogLevelWarn = lipgloss.NewStyle().
+	Foreground(ColorWarning)
+
+// LogLevelError renders error-level log indicators (bold).
+var LogLevelError = lipgloss.NewStyle().
+	Foreground(ColorError).
+	Bold(true)
+
 // BrandText returns the styled FireFrp header block (title + subtitle).
 func BrandText() string {
 	title := TitleStyle.Render("FireFrp Client")

@@ -39,6 +39,11 @@ type tunnelStatusMsg struct {
 	update tunnel.StatusUpdate
 }
 
+// logMsg carries a frpc log entry to be displayed in the running view.
+type logMsg struct {
+	entry tunnel.LogEntry
+}
+
 // errorMsg carries an error to be displayed.
 type errorMsg struct {
 	err error
@@ -62,9 +67,11 @@ type AppModel struct {
 	apiClient *api.APIClient
 
 	// Tunnel runtime state.
-	tunnelCfg *tunnel.TunnelConfig
-	statusCh  chan tunnel.StatusUpdate
-	cancelFn  context.CancelFunc
+	tunnelCfg   *tunnel.TunnelConfig
+	statusCh    chan tunnel.StatusUpdate
+	logCh       chan tunnel.LogEntry
+	pendingLogs []tunnel.LogEntry
+	cancelFn    context.CancelFunc
 
 	// Submitted values (kept for retry).
 	submittedKey  string
@@ -180,6 +187,19 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tunnelStatusMsg:
 		return m.handleTunnelStatus(msg.update)
 
+	// -- Tunnel log entries ------------------------------------------------
+	case logMsg:
+		switch m.state {
+		case stateConnecting:
+			m.pendingLogs = append(m.pendingLogs, msg.entry)
+		case stateRunning:
+			m.runningView.AddLog(msg.entry.Time, msg.entry.Level, msg.entry.Message)
+		}
+		if m.state == stateConnecting || m.state == stateRunning {
+			return m, m.waitForLog()
+		}
+		return m, nil
+
 	// -- Cancel during connection ------------------------------------------
 	case views.CancelConnectMsg:
 		m.cleanup()
@@ -257,17 +277,21 @@ func (m *AppModel) startTunnel(data *api.ValidateData) tea.Cmd {
 	statusCh := make(chan tunnel.StatusUpdate, 16)
 	m.statusCh = statusCh
 
+	logCh := make(chan tunnel.LogEntry, 64)
+	m.logCh = logCh
+
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancelFn = cancel
 
 	// Start tunnel in background goroutine.
 	go func() {
-		_ = tunnel.StartTunnel(ctx, *cfg, statusCh)
+		_ = tunnel.StartTunnel(ctx, *cfg, statusCh, logCh)
 		close(statusCh)
+		close(logCh)
 	}()
 
-	// Return a command that waits for the first status update.
-	return m.waitForStatus()
+	// Return commands that wait for both status updates and log entries.
+	return tea.Batch(m.waitForStatus(), m.waitForLog())
 }
 
 // waitForStatus returns a tea.Cmd that reads the next status update from the
@@ -286,6 +310,22 @@ func (m *AppModel) waitForStatus() tea.Cmd {
 	}
 }
 
+// waitForLog returns a tea.Cmd that reads the next log entry from the
+// channel and wraps it into a logMsg.
+func (m *AppModel) waitForLog() tea.Cmd {
+	ch := m.logCh
+	if ch == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		entry, ok := <-ch
+		if !ok {
+			return nil
+		}
+		return logMsg{entry: entry}
+	}
+}
+
 // handleTunnelStatus processes a tunnel status update and transitions state.
 func (m AppModel) handleTunnelStatus(u tunnel.StatusUpdate) (tea.Model, tea.Cmd) {
 	switch u.Status {
@@ -294,6 +334,11 @@ func (m AppModel) handleTunnelStatus(u tunnel.StatusUpdate) (tea.Model, tea.Cmd)
 		remoteAddr := fmt.Sprintf("%s:%d", m.tunnelCfg.ServerAddr, m.tunnelCfg.RemotePort)
 		localAddr := fmt.Sprintf("%s:%d", m.tunnelCfg.LocalIP, m.tunnelCfg.LocalPort)
 		m.runningView = views.NewRunningModel(remoteAddr, localAddr, m.expiresAt)
+		// Flush any log entries buffered during the connecting phase.
+		for _, entry := range m.pendingLogs {
+			m.runningView.AddLog(entry.Time, entry.Level, entry.Message)
+		}
+		m.pendingLogs = nil
 		m.state = stateRunning
 		return m, tea.Batch(m.runningView.Init(), m.waitForStatus())
 
@@ -338,12 +383,14 @@ func (m AppModel) handleTunnelStatus(u tunnel.StatusUpdate) (tea.Model, tea.Cmd)
 }
 
 // cleanup cancels the tunnel context. The tunnel goroutine is responsible for
-// closing the status channel after it exits.
+// closing the status and log channels after it exits.
 func (m *AppModel) cleanup() {
 	if m.cancelFn != nil {
 		m.cancelFn()
 		m.cancelFn = nil
 	}
+	m.logCh = nil
+	m.pendingLogs = nil
 }
 
 // mapErrorCode translates a server error code into a user-friendly Chinese

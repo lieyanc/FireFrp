@@ -108,13 +108,20 @@ func runDirect(cfg *config.Config) error {
 
 	// Step 4: Start the tunnel and monitor status updates.
 	statusCh := make(chan tunnel.StatusUpdate, 16)
+	logCh := make(chan tunnel.LogEntry, 64)
 
 	// Monitor status updates in a separate goroutine.
 	go monitorStatus(statusCh)
 
+	// Drain log entries in a separate goroutine (CLI mode prints to stdout anyway).
+	go func() {
+		for range logCh {
+		}
+	}()
+
 	// StartTunnel blocks until context is cancelled or an error occurs.
 	fmt.Printf("Starting tunnel...\n")
-	return tunnel.StartTunnel(ctx, tunnelCfg, statusCh)
+	return tunnel.StartTunnel(ctx, tunnelCfg, statusCh, logCh)
 }
 
 // monitorStatus reads status updates from the tunnel and prints them to stdout.

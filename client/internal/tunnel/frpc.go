@@ -4,11 +4,15 @@
 package tunnel
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/fatedier/frp/client"
 	v1 "github.com/fatedier/frp/pkg/config/v1"
+	frplog "github.com/fatedier/frp/pkg/util/log"
+	goliblog "github.com/fatedier/golib/log"
 	"github.com/samber/lo"
 )
 
@@ -51,6 +55,82 @@ type StatusUpdate struct {
 	Error   error
 }
 
+// LogEntry represents a parsed frpc log line.
+type LogEntry struct {
+	Time    string // HH:MM:SS
+	Level   string // I, W, E, D, T
+	Message string // Log message text (source file reference stripped)
+}
+
+// logWriter implements io.Writer to capture frpc log output.
+// It buffers incoming bytes, splits on newlines, parses each line,
+// and sends LogEntry values to a channel.
+type logWriter struct {
+	ch  chan<- LogEntry
+	buf bytes.Buffer
+}
+
+func (w *logWriter) Write(p []byte) (n int, err error) {
+	n = len(p)
+	w.buf.Write(p)
+	for {
+		line, err := w.buf.ReadString('\n')
+		if err != nil {
+			// Incomplete line — put it back for next Write call.
+			w.buf.WriteString(line)
+			break
+		}
+		line = strings.TrimRight(line, "\r\n")
+		if entry, ok := parseLogLine(line); ok {
+			select {
+			case w.ch <- entry:
+			default:
+			}
+		}
+	}
+	return n, nil
+}
+
+// parseLogLine parses a frpc log line of the form:
+//
+//	"YYYY-MM-DD HH:MM:SS.mmm [L] [source/file.go:line] message"
+//
+// It extracts the time (HH:MM:SS), level letter, and message (with
+// the date, milliseconds, and source reference stripped).
+func parseLogLine(line string) (LogEntry, bool) {
+	// Minimal length: "YYYY-MM-DD HH:MM:SS.mmm [X] msg" = 32 chars
+	if len(line) < 32 {
+		return LogEntry{}, false
+	}
+
+	// Extract time portion (characters 11..18 = "HH:MM:SS").
+	timePart := line[11:19]
+
+	// Find the level in square brackets after the timestamp.
+	// Expected format: "... [L] ..."
+	rest := line[24:] // skip "YYYY-MM-DD HH:MM:SS.mmm "
+	if len(rest) < 3 || rest[0] != '[' || rest[2] != ']' {
+		return LogEntry{}, false
+	}
+	level := string(rest[1])
+
+	// Skip past "[L] "
+	msg := rest[4:]
+
+	// Strip the optional "[source/file.go:line] " prefix from the message.
+	if len(msg) > 0 && msg[0] == '[' {
+		if idx := strings.Index(msg, "] "); idx != -1 {
+			msg = msg[idx+2:]
+		}
+	}
+
+	return LogEntry{
+		Time:    timePart,
+		Level:   level,
+		Message: msg,
+	}, true
+}
+
 // TunnelConfig holds all parameters required to establish a TCP tunnel via frp.
 type TunnelConfig struct {
 	// ServerAddr is the frps server address (hostname or IP).
@@ -75,11 +155,14 @@ type TunnelConfig struct {
 // It sends status updates to statusCh and blocks until the context is cancelled
 // or an unrecoverable error occurs.
 //
+// Log output from the frpc library is redirected to logCh as parsed LogEntry
+// values so the TUI can display them without corrupting the alt screen.
+//
 // The tunnel is configured with LoginFailExit=false so that frpc will keep
 // retrying the connection if the initial login fails (e.g. due to transient
 // network issues). The frps server-side plugin uses the access_key metadata
 // to validate the client on Login.
-func StartTunnel(ctx context.Context, cfg TunnelConfig, statusCh chan<- StatusUpdate) error {
+func StartTunnel(ctx context.Context, cfg TunnelConfig, statusCh chan<- StatusUpdate, logCh chan<- LogEntry) error {
 	// Send initial connecting status.
 	sendStatus(statusCh, StatusUpdate{
 		Status:  StatusConnecting,
@@ -91,6 +174,11 @@ func StartTunnel(ctx context.Context, cfg TunnelConfig, statusCh chan<- StatusUp
 
 	// Build the TCP proxy configuration.
 	proxyCfg := buildTCPProxyConfig(cfg)
+
+	// Redirect the frpc global logger to our logWriter so that log output
+	// is captured as structured entries instead of going to os.Stdout,
+	// which would corrupt the Bubble Tea alt screen.
+	frplog.Logger = frplog.Logger.WithOptions(goliblog.WithOutput(&logWriter{ch: logCh}))
 
 	// Create the frp client service.
 	svc, err := client.NewService(client.ServiceOptions{
