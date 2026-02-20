@@ -52,6 +52,16 @@ function shouldCheckDev(): boolean {
 }
 
 /**
+ * Parse the build number from a dev version string.
+ * e.g. "dev-10-20260220-715650a" → 10, "dev-3-20260219-abc1234" → 3.
+ * Returns -1 if the string is not a valid dev version.
+ */
+function parseDevBuildNumber(version: string): number {
+  const match = version.match(/^dev-(\d+)-/);
+  return match ? parseInt(match[1], 10) : -1;
+}
+
+/**
  * Check GitHub Releases for a newer version.
  * Uses config.updates.channel to determine which releases to check.
  */
@@ -97,6 +107,19 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
     if (latestVersion === currentVersion) {
       log.info({ currentVersion }, 'Already on the latest version');
       return result;
+    }
+
+    // For dev versions, compare build numbers to prevent downgrade
+    if (isDev) {
+      const currentBuild = parseDevBuildNumber(currentVersion);
+      const latestBuild = parseDevBuildNumber(latestVersion);
+      if (currentBuild >= 0 && latestBuild >= 0 && latestBuild <= currentBuild) {
+        log.info(
+          { currentVersion, latestVersion, currentBuild, latestBuild },
+          'Remote version is not newer than current, skipping update',
+        );
+        return result;
+      }
     }
 
     // Find the server tarball asset

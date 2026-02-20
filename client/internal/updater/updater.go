@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,6 +42,24 @@ type UpdateInfo struct {
 // IsDevVersion returns true if the version string is a dev build.
 func IsDevVersion(v string) bool {
 	return strings.HasPrefix(v, "dev-")
+}
+
+// parseDevBuildNumber extracts the build number from a dev version string.
+// e.g. "dev-10-20260220-715650a" → 10. Returns -1 if parsing fails.
+func parseDevBuildNumber(v string) int {
+	if !strings.HasPrefix(v, "dev-") {
+		return -1
+	}
+	rest := v[4:] // strip "dev-"
+	idx := strings.Index(rest, "-")
+	if idx < 0 {
+		return -1
+	}
+	n, err := strconv.Atoi(rest[:idx])
+	if err != nil {
+		return -1
+	}
+	return n
 }
 
 // assetName returns the expected binary asset name for the current platform.
@@ -101,6 +120,13 @@ func CheckUpdate(serverVersion, currentVersion, channel string) (*UpdateInfo, er
 	}
 
 	if latest.TagName == currentVersion {
+		return &UpdateInfo{Available: false}, nil
+	}
+
+	// Prevent downgrade: only update if the remote build number is higher.
+	currentBuild := parseDevBuildNumber(currentVersion)
+	latestBuild := parseDevBuildNumber(latest.TagName)
+	if currentBuild >= 0 && latestBuild >= 0 && latestBuild <= currentBuild {
 		return &UpdateInfo{Available: false}, nil
 	}
 

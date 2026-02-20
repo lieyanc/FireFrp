@@ -22,7 +22,8 @@ jobs:
         run: |
           SHORT_HASH=$(git rev-parse --short HEAD)
           DATE=$(date -u +%Y%m%d)
-          VERSION="dev-${{ github.run_number }}-${DATE}-${SHORT_HASH}"
+          PADDED_NUM=$(printf "%04d" "${{ github.run_number }}")
+          VERSION="dev-${PADDED_NUM}-${DATE}-${SHORT_HASH}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VERSION}"
 
